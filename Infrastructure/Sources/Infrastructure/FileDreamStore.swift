@@ -1,0 +1,118 @@
+//
+//  FileDreamStore.swift
+//  Infrastructure
+//
+//  Created by DreamFinder.
+//
+
+import Foundation
+import DomainLogic         // gives us Dream, AudioSegment, DreamState & DreamStore
+import CoreModels
+
+/// Errors that can surface while persisting dreams to disk.
+public enum DreamStoreError: Error, LocalizedError, Sendable {
+    case dreamNotFound(UUID)
+    case io(Error)
+
+    public var errorDescription: String? {
+        switch self {
+        case .dreamNotFound(let id): return "Dream \(id) could not be located on disk."
+        case .io(let e):             return e.localizedDescription
+        }
+    }
+}
+
+#if DEBUG            // compiled only for test targets
+extension FileDreamStore {
+    /// Load a dream from disk so tests can assert on the persisted value.
+    func debug_read(_ id: UUID) async throws -> Dream {
+        try await read(id)                // calls the actor’s private method
+    }
+}
+#endif
+
+
+/// JSON-backed implementation of DreamStore.
+/// Every dream is stored as <ID>.json in the ~/Library/Dreams directory.
+public actor FileDreamStore: DreamStore, Sendable {
+
+    // MARK: – Init
+
+    private let root: URL
+    private let encoder = JSONEncoder()
+    private let decoder = JSONDecoder()
+
+    /// Production entry-point — uses Library/ on device or simulator.
+    public init(container: FileManager.SearchPathDirectory = .documentDirectory) {
+        let base = FileManager.default.urls(for: container, in: .userDomainMask)[0]
+        self.root = base.appendingPathComponent("Dreams", isDirectory: true)
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        encoder.dateEncodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .iso8601
+    }
+
+    /// **Test-only** entry-point — lets XCTest write to a throw-away folder.
+    public init(customRootURL url: URL) {
+        self.root = url.appendingPathComponent("Dreams", isDirectory: true)
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        encoder.dateEncodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .iso8601
+    }
+
+    // MARK: – DreamStore
+
+    public func insertNew(_ dream: Dream) async throws {
+        try await write(dream)
+    }
+
+    public func appendSegment(dreamID: UUID, segment: AudioSegment) async throws {
+        var dream = try await read(dreamID)
+        dream.segments.append(segment)
+        try await write(dream)
+    }
+
+    public func markCompleted(_ dreamID: UUID) async throws {
+        var dream = try await read(dreamID)
+        guard dream.state == .draft else { return }          // idempotent
+        dream.state = .completed
+        try await write(dream)
+    }
+
+    // MARK: – Helpers
+
+    private func url(for id: UUID) -> URL {
+        root.appendingPathComponent(id.uuidString).appendingPathExtension("json")
+    }
+
+    private func read(_ id: UUID) async throws -> Dream {
+        let fileURL = url(for: id)
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            throw DreamStoreError.dreamNotFound(id)
+        }
+        do {
+            let data = try Data(contentsOf: fileURL)
+            return try decoder.decode(Dream.self, from: data)
+        } catch {
+            throw DreamStoreError.io(error)
+        }
+    }
+
+    private func write(_ dream: Dream) async throws {
+        let data: Data
+        do {
+            data = try encoder.encode(dream)
+        } catch {
+            throw DreamStoreError.io(error)
+        }
+
+        let fileURL = url(for: dream.id)
+        // Atomic write: encode to a tmp file then replace.
+        do {
+            let tmpURL = fileURL.appendingPathExtension("tmp")
+            try data.write(to: tmpURL, options: .atomic)
+            _ = try FileManager.default.replaceItemAt(fileURL, withItemAt: tmpURL)
+        } catch {
+            throw DreamStoreError.io(error)
+        }
+    }
+}
