@@ -33,4 +33,5 @@ public protocol DreamStore: Sendable {
     func segments(dreamID: UUID) async throws -> [AudioSegment]              // ← new
     func markCompleted(_ dreamID: UUID) async throws
     func allDreams() async throws -> [Dream]
+    func updateTitle(dreamID: UUID, title: String) async throws
 }

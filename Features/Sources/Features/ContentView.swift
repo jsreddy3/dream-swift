@@ -2,15 +2,15 @@ import SwiftUI
 import Infrastructure       // concrete actors
 import DomainLogic
 
-struct ContentView: View {
+public struct ContentView: View {
     @State private var vm: CaptureViewModel
     @State private var showLibrary = false
 
-    init(viewModel: CaptureViewModel) {
+    public init(viewModel: CaptureViewModel) {
         _vm = State(initialValue: viewModel)
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {                        // ← just this wrapper is new
             VStack(spacing: 24) {                // ← your existing layout
                 Text(label(for: vm.state)).font(.headline)
@@ -22,9 +22,13 @@ struct ContentView: View {
                         .foregroundStyle(color(for: vm.state))
                 }
                 .buttonStyle(.plain)
-
+                
                 if case .paused = vm.state {
+                    TextField("Dream title", text: $vm.title)
+                        .textFieldStyle(.roundedBorder)
+                        .padding(.horizontal)
                     Button("Done") { vm.finish() }.font(.title3)
+
                 }
 
                 if !vm.segments.isEmpty {

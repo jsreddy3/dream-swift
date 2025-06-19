@@ -110,6 +110,12 @@ public actor FileDreamStore: DreamStore, Sendable {
         dreams.sort { $0.created > $1.created }      // newest first
         return dreams
     }
+    
+    public func updateTitle(dreamID: UUID, title: String) async throws {
+        var dream = try await read(dreamID)
+        dream.title = title
+        try await write(dream)
+    }
 
     // MARK: – Helpers
 

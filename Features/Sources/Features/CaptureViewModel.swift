@@ -1,7 +1,8 @@
 import SwiftUI
-import DomainLogic          // StartCaptureDream, StopCaptureDream, CompleteDream
+import DomainLogic          // StartCaptureDream, StopCaptureDream, CompleteDream, RenameDream
 import Infrastructure       // AudioRecorderActor, FileDreamStore
 import CoreModels
+import Observation
 
 /// Captures every externally-visible phase of the capture workflow.
 enum CaptureState: Equatable {
@@ -15,29 +16,32 @@ enum CaptureState: Equatable {
 
 @MainActor
 @Observable                    // new macro in Swift 5.10 replaces @Published boilerplate
-final class CaptureViewModel {
+public final class CaptureViewModel {
     let store: FileDreamStore            // ← expose for Library use
 
     private let start: StartCaptureDream
     private let stop: StopCaptureDream
     private let done: CompleteDream
     private let cont: StartAdditionalSegment
+    private let renamer: RenameDream
     private let querySegments: (UUID) async throws -> [AudioSegment]
     private let deleteSegment: (UUID, UUID) async throws -> Void
 
     var state: CaptureState = .idle          // drives the entire UI
     var segments: [AudioSegment] = []              // drives the on-screen list
+    var title: String = ""
 
     private var dreamID: UUID?
     private var handle: RecordingHandle?
     private var order = 0
 
-    init(recorder: AudioRecorderActor, store: FileDreamStore) {
+    public init(recorder: AudioRecorderActor, store: FileDreamStore) {
         self.store = store
         start = StartCaptureDream(recorder: recorder, store: store)
         stop  = StopCaptureDream(recorder: recorder, store: store)
         done  = CompleteDream(store: store)
         cont  = StartAdditionalSegment(recorder: recorder, store: store)
+        renamer = RenameDream(store: store)
         
         querySegments = { try await store.segments(dreamID: $0) }
         deleteSegment = { try await store.removeSegment(dreamID: $0, segmentID: $1) }
@@ -105,6 +109,11 @@ final class CaptureViewModel {
         guard let id = dreamID else { return }
         state = .saving
         do {
+            let safeTitle = title.trimmingCharacters(in: .whitespaces)
+            if !safeTitle.isEmpty {
+                try await renamer(dreamID: id, newTitle: safeTitle)   
+            }
+            
             try await done(dreamID: id)
             reset()
             state = .saved
@@ -129,5 +138,6 @@ final class CaptureViewModel {
         handle  = nil
         order   = 0
         segments.removeAll()
+        title = ""
     }
 }
