@@ -12,12 +12,14 @@ import CoreModels
 /// Errors that can surface while persisting dreams to disk.
 public enum DreamStoreError: Error, LocalizedError, Sendable {
     case dreamNotFound(UUID)
+    case segmentNotFound(UUID)       // ← new
     case io(Error)
 
     public var errorDescription: String? {
         switch self {
-        case .dreamNotFound(let id): return "Dream \(id) could not be located on disk."
-        case .io(let e):             return e.localizedDescription
+        case .dreamNotFound(let id):    "Dream \(id) could not be located on disk."
+        case .segmentNotFound(let id):  "Segment \(id) is no longer present."
+        case .io(let e):                e.localizedDescription
         }
     }
 }
@@ -76,6 +78,37 @@ public actor FileDreamStore: DreamStore, Sendable {
         guard dream.state == .draft else { return }          // idempotent
         dream.state = .completed
         try await write(dream)
+    }
+    
+    public func segments(dreamID: UUID) async throws -> [AudioSegment] {
+            try await read(dreamID).segments
+        }
+
+    public func removeSegment(dreamID: UUID, segmentID: UUID) async throws {
+        var dream = try await read(dreamID)
+
+        let originalCount = dream.segments.count
+        dream.segments.removeAll { $0.id == segmentID }
+
+        guard dream.segments.count < originalCount else {
+            throw DreamStoreError.segmentNotFound(segmentID)       // new case below
+        }
+        try await write(dream)                                    // atomic replace
+    }
+    
+    public func allDreams() async throws -> [Dream] {
+        let files = try FileManager.default.contentsOfDirectory(at: root,
+                            includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "json" }
+
+        var dreams: [Dream] = []
+        for url in files {
+            do { dreams.append(try decoder.decode(Dream.self,
+                              from: Data(contentsOf: url))) }
+            catch { /* skip corrupt file, or wrap if you prefer */ }
+        }
+        dreams.sort { $0.created > $1.created }      // newest first
+        return dreams
     }
 
     // MARK: – Helpers
