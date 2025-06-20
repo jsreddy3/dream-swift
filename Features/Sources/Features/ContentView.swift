@@ -34,9 +34,20 @@ public struct ContentView: View {
                 if !vm.segments.isEmpty {
                     List {
                         ForEach(vm.segments, id: \.id) { seg in
-                            Text("Clip \(seg.order) – \(Int(seg.duration)) s")
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Clip \(seg.order) – \(Int(seg.duration)) s")
+                                    .fontWeight(.semibold)
+                                if let t = seg.transcript, !t.isEmpty {
+                                    Text(t)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)     // truncate long sentences nicely
+                                }
+                            }
                         }
-                        .onDelete { idx in vm.remove(vm.segments[idx.first!]) }
+                        .onDelete { idx in
+                            vm.remove(vm.segments[idx.first!])
+                        }
                     }
                     .listStyle(.plain)
                     .frame(maxHeight: 200)

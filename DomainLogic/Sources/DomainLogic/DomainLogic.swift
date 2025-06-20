@@ -29,8 +29,8 @@ public struct RecordingHandle: Sendable, Equatable {
 public protocol DreamStore: Sendable {
     func insertNew(_ dream: Dream) async throws
     func appendSegment(dreamID: UUID, segment: AudioSegment) async throws
-    func removeSegment(dreamID: UUID, segmentID: UUID) async throws          // ← new
-    func segments(dreamID: UUID) async throws -> [AudioSegment]              // ← new
+    func removeSegment(dreamID: UUID, segmentID: UUID) async throws
+    func segments(dreamID: UUID) async throws -> [AudioSegment]
     func markCompleted(_ dreamID: UUID) async throws
     func allDreams() async throws -> [Dream]
     func updateTitle(dreamID: UUID, title: String) async throws

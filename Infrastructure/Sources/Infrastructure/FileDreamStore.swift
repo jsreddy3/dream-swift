@@ -45,7 +45,7 @@ public actor FileDreamStore: DreamStore, Sendable {
     private let decoder = JSONDecoder()
 
     /// Production entry-point — uses Library/ on device or simulator.
-    public init(container: FileManager.SearchPathDirectory = .documentDirectory) {
+    public init(container: FileManager.SearchPathDirectory = .libraryDirectory) {
         let base = FileManager.default.urls(for: container, in: .userDomainMask)[0]
         self.root = base.appendingPathComponent("Dreams", isDirectory: true)
         try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

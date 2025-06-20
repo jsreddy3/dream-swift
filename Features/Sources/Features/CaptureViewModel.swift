@@ -1,6 +1,6 @@
 import SwiftUI
 import DomainLogic          // StartCaptureDream, StopCaptureDream, CompleteDream, RenameDream
-import Infrastructure       // AudioRecorderActor, FileDreamStore
+import Infrastructure       // AudioRecorderActor, RemoteDreamStore
 import CoreModels
 import Observation
 
@@ -17,7 +17,7 @@ enum CaptureState: Equatable {
 @MainActor
 @Observable                    // new macro in Swift 5.10 replaces @Published boilerplate
 public final class CaptureViewModel {
-    let store: FileDreamStore            // ← expose for Library use
+    let store: RemoteDreamStore            // ← expose for Library use
 
     private let start: StartCaptureDream
     private let stop: StopCaptureDream
@@ -26,6 +26,7 @@ public final class CaptureViewModel {
     private let renamer: RenameDream
     private let querySegments: (UUID) async throws -> [AudioSegment]
     private let deleteSegment: (UUID, UUID) async throws -> Void
+    
 
     var state: CaptureState = .idle          // drives the entire UI
     var segments: [AudioSegment] = []              // drives the on-screen list
@@ -34,8 +35,9 @@ public final class CaptureViewModel {
     private var dreamID: UUID?
     private var handle: RecordingHandle?
     private var order = 0
+    private var uploadsTask: Task<Void, Never>?   // stored property
 
-    public init(recorder: AudioRecorderActor, store: FileDreamStore) {
+    public init(recorder: AudioRecorderActor, store: RemoteDreamStore) {
         self.store = store
         start = StartCaptureDream(recorder: recorder, store: store)
         stop  = StopCaptureDream(recorder: recorder, store: store)
@@ -45,6 +47,8 @@ public final class CaptureViewModel {
         
         querySegments = { try await store.segments(dreamID: $0) }
         deleteSegment = { try await store.removeSegment(dreamID: $0, segmentID: $1) }
+        
+        listen(to: store)
     }
 
     func startOrStop() {
@@ -77,6 +81,28 @@ public final class CaptureViewModel {
     }
 
     // MARK: private helpers
+    
+    private func listen(to store: RemoteDreamStore) {
+        uploadsTask = Task {                      // this inherits MainActor context
+            for await result in await store.uploads {   // suspends until something is yielded
+                guard result.dreamID == dreamID else { continue }
+
+                // If the server kindly gave us speech-to-text, integrate it.
+                if !result.transcript.isEmpty {
+                    let cleaned = result.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !cleaned.isEmpty {
+                        // naïve approach: tack the text onto the draft title
+                        // You might instead store per-segment subtitles.
+                        title = (title + " " + cleaned).trimmingCharacters(in: .whitespaces)
+                    }
+                }
+
+                // After any upload completes we fetch the authoritative segment list.
+                // This reconciles server-side reordering or duration adjustments.
+                try? await refreshSegments()
+            }
+        }
+    }
 
     private func beginRecording() async {
         do {
@@ -139,5 +165,18 @@ public final class CaptureViewModel {
         order   = 0
         segments.removeAll()
         title = ""
+    }
+    
+    deinit {
+        // Take a local snapshot of the handle.  This single line does
+        // touch a main-actor-isolated property, so we wrap the access in
+        // a one-off hop onto the main actor.  The hop finishes synchronously
+        // before we leave deinit, therefore the handle is valid and 'self'
+        // is no longer captured by the closure that follows.
+        let handle: Task<Void, Never>? = MainActor.assumeIsolated { uploadsTask }
+
+        // Now cancel from whichever thread happens to be running deinit.
+        // 'cancel()' is inherently thread-safe.
+        handle?.cancel()
     }
 }

@@ -3,6 +3,7 @@ import Foundation
 public enum DreamState: String, Codable, Sendable {
     case draft
     case completed
+    case video_received
 }
 
 public struct Dream: Identifiable, Codable, Equatable, Sendable {
@@ -35,16 +36,19 @@ public struct AudioSegment: Identifiable, Codable, Equatable, Sendable {
     public let filename: String
     public let duration: TimeInterval
     public let order: Int
+    public let transcript: String?
 
     public init(
         id: UUID = UUID(),
         filename: String,
         duration: TimeInterval,
-        order: Int
+        order: Int,
+        transcript: String? = nil
     ) {
         self.id = id
         self.filename = filename
         self.duration = duration
         self.order = order
+        self.transcript = transcript
     }
 }

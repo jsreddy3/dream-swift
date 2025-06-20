@@ -14,7 +14,7 @@ final class DreamLibraryViewModel {
 
     var dreams: [Dream] = []
 
-    init(store: FileDreamStore) {
+    init(store: RemoteDreamStore) {
         fetch = GetDreamLibrary(store: store)
         segmentsOf = { try await store.segments(dreamID: $0) }
         renamer     = RenameDream(store: store)
