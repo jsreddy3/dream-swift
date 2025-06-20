@@ -116,6 +116,39 @@ public actor FileDreamStore: DreamStore, Sendable {
         dream.title = title
         try await write(dream)
     }
+    
+    public func getTranscript(dreamID: UUID) async throws -> String? {
+        let dream = try await read(dreamID)
+        let transcript = dream.transcript ?? ""
+        return transcript
+    }
+    
+    internal func replaceSegments(
+            _ id: UUID,
+            with newSegments: [AudioSegment]
+        ) async throws {
+            var dream = try await read(id)
+            dream.segments = newSegments
+            try await write(dream)
+        }
+
+        /// Insert-or-update: if we already have a JSON file with this ID
+        /// it is overwritten, otherwise a fresh file is created.
+        /// Lets the sync layer converge on the server’s canonical dream list.
+        internal func upsert(_ dream: Dream) async throws {
+            try await write(dream)
+        }
+
+        /// Generic mutate-in-place helper.  The closure receives an `inout Dream`
+        /// so callers can tweak any field without re-decoding outside this actor.
+        internal func updateDream(
+            _ id: UUID,
+            mutating body: (inout Dream) -> Void
+        ) async throws {
+            var dream = try await read(id)
+            body(&dream)
+            try await write(dream)
+        }
 
     // MARK: – Helpers
 

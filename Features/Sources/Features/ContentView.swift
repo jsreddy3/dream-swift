@@ -27,8 +27,7 @@ public struct ContentView: View {
                     TextField("Dream title", text: $vm.title)
                         .textFieldStyle(.roundedBorder)
                         .padding(.horizontal)
-                    Button("Done") { vm.finish() }.font(.title3)
-
+                    Button("Complete Dream Recording") { vm.finish() }.font(.title3)
                 }
 
                 if !vm.segments.isEmpty {

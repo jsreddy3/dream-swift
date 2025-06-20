@@ -141,6 +141,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
             try await upload(local: path, to: signed.url)
 
             let payload = RegisterPayload(
+                segment_id: segment.id,
                 filename: segment.filename,
                 duration: segment.duration,
                 order: segment.order,
@@ -168,6 +169,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
 
     private struct Presigned: Decodable { let upload_url: URL; let s3_key: String }
     private struct RegisterPayload: Encodable {
+        let segment_id: UUID
         let filename: String
         let duration: TimeInterval
         let order: Int
@@ -220,9 +222,13 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         }
     }
 
-    private func localPath(for filename: String) throws -> URL {
-        let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        return dir.appendingPathComponent(filename)
+    private func localPath(for filename: String) -> URL {
+        let root = FileManager.default
+            .urls(for: .libraryDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Dreams", isDirectory: true)
+
+        // The folder already exists because FileDreamStore created it.
+        return root.appendingPathComponent(filename)
     }
 
     // MARK: – Networking mini-primitives

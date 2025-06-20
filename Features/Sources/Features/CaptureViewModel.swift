@@ -17,7 +17,7 @@ enum CaptureState: Equatable {
 @MainActor
 @Observable                    // new macro in Swift 5.10 replaces @Published boilerplate
 public final class CaptureViewModel {
-    let store: RemoteDreamStore            // ← expose for Library use
+    let store: SyncingDreamStore            // ← expose for Library use
 
     private let start: StartCaptureDream
     private let stop: StopCaptureDream
@@ -37,7 +37,7 @@ public final class CaptureViewModel {
     private var order = 0
     private var uploadsTask: Task<Void, Never>?   // stored property
 
-    public init(recorder: AudioRecorderActor, store: RemoteDreamStore) {
+    public init(recorder: AudioRecorderActor, store: SyncingDreamStore) {
         self.store = store
         start = StartCaptureDream(recorder: recorder, store: store)
         stop  = StopCaptureDream(recorder: recorder, store: store)
@@ -82,7 +82,7 @@ public final class CaptureViewModel {
 
     // MARK: private helpers
     
-    private func listen(to store: RemoteDreamStore) {
+    private func listen(to store: SyncingDreamStore) {
         uploadsTask = Task {                      // this inherits MainActor context
             for await result in await store.uploads {   // suspends until something is yielded
                 guard result.dreamID == dreamID else { continue }
@@ -119,12 +119,13 @@ public final class CaptureViewModel {
         }
     }
 
-    private func endRecording()   async {
+    private func endRecording() async {
         guard let id = dreamID, let h = handle else { return }
         do {
-            try await stop(dreamID: id, handle: h, order: order)
+            let newSeg = try await stop(dreamID: id, handle: h, order: order)
             order += 1
-            try await refreshSegments()                      // pull authoritative array
+            segments.append(newSeg)              // ← row appears immediately
+            try await refreshSegments()           // still reconciles if online
             state = .paused
         } catch {
             state = .failed("Stop error: \(error.localizedDescription)")

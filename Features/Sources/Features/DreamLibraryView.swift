@@ -34,12 +34,26 @@ struct DreamLibraryView: View {
                 } else { ProgressView() }
             }
 
-            let rowLabel = HStack {
-                Text(dream.title.isEmpty ? "Untitled" : dream.title)
-                Spacer()
+            let rowLabel = HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(dream.title.isEmpty ? "Untitled" : dream.title)
+                        .fontWeight(.semibold)
+
+                    if let t = dream.transcript, !t.isEmpty {
+                        Text(t)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)                     // truncate long transcripts
+                    }
+                }
+
+                Spacer(minLength: 12)
+
                 Text(dream.state == .draft ? "Draft" : "Done")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
+
 
             DisclosureGroup(isExpanded: isExpanded) { clipList } label: { rowLabel }
                 .swipeActions {
@@ -49,7 +63,7 @@ struct DreamLibraryView: View {
                     }
                 }
         }
-        .task { vm.refresh() }
+        .task { await vm.refresh() }
         .navigationTitle("Dream Library")
         // ――― rename sheet ―――
         .sheet(item: $editing) { dream in

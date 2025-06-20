@@ -98,12 +98,21 @@ public actor AudioRecorderActor: AudioRecorder, Sendable {
         let duration = r.currentTime
         r.stop()
 
-        // Clear state *before* returning in case caller immediately records again.
+        // ---- NEW: move the clip out of Caches into ~/Library/Dreams ----
+        let dreamsRoot = FileManager.default
+            .urls(for: .libraryDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Dreams", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dreamsRoot,
+                                                 withIntermediateDirectories: true)
+        let permanentURL = dreamsRoot.appendingPathComponent(url.lastPathComponent)
+        try FileManager.default.moveItem(at: url, to: permanentURL)
+        // ----------------------------------------------------------------
+
         recorder = nil
         currentURL = nil
 
         return CompletedSegment(segmentID: handle.segmentID,
-                                filename: url.lastPathComponent,
+                                filename: permanentURL.lastPathComponent,
                                 duration: duration)
     }
 }

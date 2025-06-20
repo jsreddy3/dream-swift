@@ -8,19 +8,27 @@ import Observation
 @MainActor
 @Observable
 final class DreamLibraryViewModel {
+    let store: SyncingDreamStore
+    
     private let fetch: GetDreamLibrary
     private let segmentsOf: (UUID) async throws -> [AudioSegment]
     private let renamer: RenameDream                                // ← new
 
     var dreams: [Dream] = []
 
-    init(store: RemoteDreamStore) {
+    init(store: SyncingDreamStore) {
         fetch = GetDreamLibrary(store: store)
         segmentsOf = { try await store.segments(dreamID: $0) }
         renamer     = RenameDream(store: store)
+        
+        self.store = store
     }
 
-    func refresh() { Task { try? await dreams = fetch() } }
+    @MainActor                        // ← guarantees UI-safe writes
+    func refresh() async {
+        do   { dreams = try await store.allDreams() }   // /list-dreams/
+            catch { /* surface an error if you like */ }
+    }
 
     func segments(for dream: Dream) async throws -> [AudioSegment] {
         try await segmentsOf(dream.id)
@@ -29,7 +37,7 @@ final class DreamLibraryViewModel {
     func rename(_ dream: Dream, to newTitle: String) async {
         guard !newTitle.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         do  { try await renamer(dreamID: dream.id, newTitle: newTitle)
-              refresh() }                                          // pull updated list
+              await refresh() }                                          // pull updated list
         catch { /* surface error if you like */ }
     }
 }

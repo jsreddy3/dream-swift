@@ -12,7 +12,7 @@ public struct StopCaptureDream: Sendable {
 
     public func callAsFunction(dreamID: UUID,
                                handle: RecordingHandle,
-                               order: Int) async throws {
+                               order: Int) async throws -> AudioSegment {
         // 1. Finish the recording and obtain the file info
         let completed = try await recorder.stop(handle)
 
@@ -24,6 +24,7 @@ public struct StopCaptureDream: Sendable {
 
         // 3. Persist the new segment inside the dream
         try await store.appendSegment(dreamID: dreamID, segment: segment)
+        return segment
     }
 }
 
