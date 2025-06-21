@@ -18,7 +18,7 @@ public actor SyncingDreamStore: DreamStore, Sendable {
     private let remote: RemoteDreamStore
 
     // MARK: Durable queue
-    private var queue: [PendingOp]
+    internal var queue: [PendingOp]
     private let queueURL: URL
 
     // MARK: Reachability
@@ -139,6 +139,21 @@ public actor SyncingDreamStore: DreamStore, Sendable {
         }
         return cached
     }
+    
+    public func drain() async {
+        guard isOnline else { return }
+
+        while isOnline, !queue.isEmpty {
+            let op = queue.removeFirst()      // remove from RAM
+            do {
+                try await perform(op)
+                truncateLogIfEmpty()          // ← compact only when queue is empty
+            } catch {
+                queue.insert(op, at: 0)       // push back
+                break                         // bail; retry later
+            }
+        }
+    }
 
 
     // MARK: Queue helpers
@@ -182,25 +197,11 @@ public actor SyncingDreamStore: DreamStore, Sendable {
     }
 
     // MARK: Draining
-    private func networkChanged(_ now: Bool) async {
+    internal func networkChanged(_ now: Bool) async {
         isOnline = now
         if isOnline { await drain() }
     }
-    
-    private func drain() async {
-        guard isOnline else { return }
 
-        while isOnline, !queue.isEmpty {
-            let op = queue.removeFirst()      // remove from RAM
-            do {
-                try await perform(op)
-                truncateLogIfEmpty()          // ← compact only when queue is empty
-            } catch {
-                queue.insert(op, at: 0)       // push back
-                break                         // bail; retry later
-            }
-        }
-    }
     
     private func perform(_ op: PendingOp) async throws {
         switch op {
@@ -231,7 +232,7 @@ public actor SyncingDreamStore: DreamStore, Sendable {
 }
 
 // MARK: Codable op descriptions
-private enum PendingOp: Codable {
+internal enum PendingOp: Codable {
     case create(Dream)
     case append(dreamID: UUID, segment: AudioSegment)
     case remove(dreamID: UUID, segmentID: UUID)

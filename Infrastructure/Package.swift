@@ -4,7 +4,8 @@ import PackageDescription
 let package = Package(
     name: "Infrastructure",
     platforms: [                          // ← add this block
-        .iOS("17.0")
+        .iOS("17.0"),
+        .macOS("12.0")
     ],
     products: [
         .library(name: "Infrastructure", targets: ["Infrastructure"])
