@@ -1,47 +1,71 @@
+//
 //  dreamApp.swift
+//
+
 import SwiftUI
 import Features
 import Infrastructure
 import DomainLogic
 import BackgroundTasks
 
-/// One helper shared by both files.  Lives at top level to avoid `self` captures.
+// MARK: – Background-sync helper
 func scheduleDreamSync() {
-    let request = BGProcessingTaskRequest(identifier: "com.dreamfinder.sync")
-    request.requiresNetworkConnectivity = true
-    request.requiresExternalPower = false
-    try? BGTaskScheduler.shared.submit(request)       // duplicate-request errors are fine
+    let req = BGProcessingTaskRequest(identifier: "com.dreamfinder.sync")
+    req.requiresNetworkConnectivity = true
+    req.requiresExternalPower      = false
+    try? BGTaskScheduler.shared.submit(req)
 }
 
+// MARK: – App entry point
 @main
-struct dreamApp: App {
-
-    // MARK: singletons
-    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-
+struct DreamApp: App {
+    
+    // ──────────────────────────────────────────────────────────────
+    //  Singletons
+    // ──────────────────────────────────────────────────────────────
+    @UIApplicationDelegateAdaptor(AppDelegate.self)
+    private var appDelegate
+    
     private let recorder = AudioRecorderActor()
     private let store:    SyncingDreamStore
-
+    
+    // `@Observable` class → store with @State
+    @State private var captureVM: CaptureViewModel
+    
+    // ──────────────────────────────────────────────────────────────
+    //  Init
+    // ──────────────────────────────────────────────────────────────
     init() {
-        let file   = FileDreamStore()
-        let remote = RemoteDreamStore(
-            baseURL: URL(string: "http://10.0.0.195:8000")!
+        // build the data layer first
+        let local  = FileDreamStore()
+        let remote = RemoteDreamStore(baseURL: URL(string: "http://10.0.0.195:8000")!)
+        let s      = SyncingDreamStore(local: local, remote: remote)
+        store = s
+        
+        // now the view-model
+        _captureVM = State(
+            initialValue: CaptureViewModel(recorder: recorder, store: s)
         )
-        store = SyncingDreamStore(local: file, remote: remote)
-        appDelegate.configure(store: store)
+        
+        // *after* every stored property is ready, it's safe to touch `self`
+        appDelegate.configure(store: s)
     }
-
-    // MARK: UI scene
+    
+    // ──────────────────────────────────────────────────────────────
+    //  UI scene
+    // ──────────────────────────────────────────────────────────────────
     @Environment(\.scenePhase) private var phase
-
+    
     var body: some Scene {
         WindowGroup {
-            ContentView(
-                viewModel: CaptureViewModel(recorder: recorder, store: store)
-            )
+            ContentView(viewModel: captureVM)
+                .onOpenURL { url in
+                    guard url.scheme == "dreamrec",
+                          url.host   == "capture" else { return }
+                }
         }
-        .onChange(of: phase) {                      // no ‘newPhase’ param
-            if phase == .background {               // just read the env var
+        .onChange(of: phase) {
+            if phase == .background {
                 scheduleDreamSync()
             }
         }

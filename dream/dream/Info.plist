@@ -6,6 +6,19 @@
 	<array>
 		<string>com.dreamfinder.sync</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.dreamfinder.dreamrec</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>dreamrec</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSExceptionDomains</key>
