@@ -3,12 +3,15 @@ import Infrastructure
 import DomainLogic
 import Foundation
 import SwiftUI
+import AVKit
 struct DreamLibraryView: View {
     @State private var vm: DreamLibraryViewModel
     @State private var open: UUID? = nil                 // restore
     @State private var clips: [UUID: [AudioSegment]] = [:]
     @State private var editing: Dream? = nil
     @State private var draft = ""
+    @State private var videoURL: URL? = nil
+    @State private var isShowingVideo = false
 
     init(viewModel: DreamLibraryViewModel) {
         _vm = State(initialValue: viewModel)
@@ -49,9 +52,27 @@ struct DreamLibraryView: View {
 
                 Spacer(minLength: 12)
 
-                Text(dream.state == .draft ? "Draft" : "Done")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(dream.state == .draft ? "Draft" : dream.state == .video_generated ? "Video Ready" : "Done")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                    if dream.state == .video_generated && dream.videoS3Key != nil {
+                        Button(action: {
+                            Task { 
+                                if let url = try? await vm.store.getVideoURL(dreamID: dream.id) {
+                                    videoURL = url
+                                    isShowingVideo = true
+                                }
+                            }
+                        }) {
+                            Image(systemName: "play.circle.fill")
+                                .foregroundColor(.accentColor)
+                                .font(.title2)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
 
 
@@ -65,6 +86,12 @@ struct DreamLibraryView: View {
         }
         .task { await vm.refresh() }
         .navigationTitle("Dream Library")
+        // ――― video player ―――
+        .fullScreenCover(isPresented: $isShowingVideo) {
+            if let url = videoURL {
+                VideoPlayerView(url: url, isPresented: $isShowingVideo)
+            }
+        }
         // ――― rename sheet ―――
         .sheet(item: $editing) { dream in
             NavigationStack {

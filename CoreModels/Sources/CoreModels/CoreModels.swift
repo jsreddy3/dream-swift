@@ -3,7 +3,7 @@ import Foundation
 public enum DreamState: String, Codable, Sendable {
     case draft
     case completed
-    case video_received
+    case video_generated = "video_generated"
 }
 
 public struct Dream: Identifiable, Codable, Equatable, Sendable {
@@ -12,7 +12,13 @@ public struct Dream: Identifiable, Codable, Equatable, Sendable {
     public var title: String
     public var transcript: String?
     public var segments: [AudioSegment]
-    public var state: DreamState                     // ← new
+    public var state: DreamState
+    public var videoS3Key: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, created, title, transcript, segments, state
+        case videoS3Key = "video_s3_key"
+    }
 
     public init(
         id: UUID = UUID(),
@@ -20,7 +26,8 @@ public struct Dream: Identifiable, Codable, Equatable, Sendable {
         title: String,
         transcript: String? = nil,
         segments: [AudioSegment] = [],
-        state: DreamState = .draft
+        state: DreamState = .draft,
+        videoS3Key: String? = nil
     ) {
         self.id = id
         self.created = created
@@ -28,6 +35,7 @@ public struct Dream: Identifiable, Codable, Equatable, Sendable {
         self.transcript = transcript
         self.segments = segments
         self.state = state
+        self.videoS3Key = videoS3Key
     }
 }
 
