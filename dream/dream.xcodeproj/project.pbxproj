@@ -11,9 +11,19 @@
 		95092FB02E034DB50051A29F /* CoreModels in Frameworks */ = {isa = PBXBuildFile; productRef = 95092FAF2E034DB50051A29F /* CoreModels */; };
 		95092FB42E036E490051A29F /* Features in Frameworks */ = {isa = PBXBuildFile; productRef = 95092FB32E036E490051A29F /* Features */; };
 		95092FB62E036E4C0051A29F /* Infrastructure in Frameworks */ = {isa = PBXBuildFile; productRef = 95092FB52E036E4C0051A29F /* Infrastructure */; };
+		9526954F2E0732B30087F470 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9526954E2E0732B30087F470 /* WidgetKit.framework */; };
+		952695512E0732B30087F470 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 952695502E0732B30087F470 /* SwiftUI.framework */; };
+		952695622E0732B40087F470 /* DreamWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9526954D2E0732B30087F470 /* DreamWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		952695602E0732B40087F470 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 95467E042E02037B00885C6F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9526954C2E0732B30087F470;
+			remoteInfo = DreamWidgetsExtension;
+		};
 		95467E1A2E02037C00885C6F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 95467E042E02037B00885C6F /* Project object */;
@@ -30,11 +40,28 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		952695672E0732B40087F470 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				952695622E0732B40087F470 /* DreamWidgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		95092FAB2E034D490051A29F /* DomainLogic */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = DomainLogic; path = ../DomainLogic; sourceTree = SOURCE_ROOT; };
 		95092FAE2E034DA30051A29F /* CoreModels */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = CoreModels; path = ../CoreModels; sourceTree = SOURCE_ROOT; };
 		95092FB12E035F170051A29F /* Infrastructure */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = Infrastructure; path = ../Infrastructure; sourceTree = SOURCE_ROOT; };
 		95092FB22E036D8E0051A29F /* Features */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = Features; path = ../Features; sourceTree = SOURCE_ROOT; };
+		9526954D2E0732B30087F470 /* DreamWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DreamWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		9526954E2E0732B30087F470 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		952695502E0732B30087F470 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		95467E0C2E02037B00885C6F /* dream.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = dream.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		95467E192E02037C00885C6F /* dreamTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = dreamTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		95467E232E02037C00885C6F /* dreamUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = dreamUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -48,9 +75,24 @@
 			);
 			target = 95467E0B2E02037B00885C6F /* dream */;
 		};
+		952695662E0732B40087F470 /* Exceptions for "DreamWidgets" folder in "DreamWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 9526954C2E0732B30087F470 /* DreamWidgetsExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		952695522E0732B30087F470 /* DreamWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				952695662E0732B40087F470 /* Exceptions for "DreamWidgets" folder in "DreamWidgetsExtension" target */,
+			);
+			path = DreamWidgets;
+			sourceTree = "<group>";
+		};
 		95467E0E2E02037B00885C6F /* dream */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -72,6 +114,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		9526954A2E0732B30087F470 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				952695512E0732B30087F470 /* SwiftUI.framework in Frameworks */,
+				9526954F2E0732B30087F470 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		95467E092E02037B00885C6F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -103,6 +154,8 @@
 		95092FA82E0349130051A29F /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				9526954E2E0732B30087F470 /* WidgetKit.framework */,
+				952695502E0732B30087F470 /* SwiftUI.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -117,6 +170,7 @@
 				95467E0E2E02037B00885C6F /* dream */,
 				95467E1C2E02037C00885C6F /* dreamTests */,
 				95467E262E02037C00885C6F /* dreamUITests */,
+				952695522E0732B30087F470 /* DreamWidgets */,
 				95092FA82E0349130051A29F /* Frameworks */,
 				95467E0D2E02037B00885C6F /* Products */,
 			);
@@ -128,6 +182,7 @@
 				95467E0C2E02037B00885C6F /* dream.app */,
 				95467E192E02037C00885C6F /* dreamTests.xctest */,
 				95467E232E02037C00885C6F /* dreamUITests.xctest */,
+				9526954D2E0732B30087F470 /* DreamWidgetsExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -135,6 +190,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		9526954C2E0732B30087F470 /* DreamWidgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 952695632E0732B40087F470 /* Build configuration list for PBXNativeTarget "DreamWidgetsExtension" */;
+			buildPhases = (
+				952695492E0732B30087F470 /* Sources */,
+				9526954A2E0732B30087F470 /* Frameworks */,
+				9526954B2E0732B30087F470 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				952695522E0732B30087F470 /* DreamWidgets */,
+			);
+			name = DreamWidgetsExtension;
+			packageProductDependencies = (
+			);
+			productName = DreamWidgetsExtension;
+			productReference = 9526954D2E0732B30087F470 /* DreamWidgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		95467E0B2E02037B00885C6F /* dream */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 95467E2D2E02037C00885C6F /* Build configuration list for PBXNativeTarget "dream" */;
@@ -142,10 +219,12 @@
 				95467E082E02037B00885C6F /* Sources */,
 				95467E092E02037B00885C6F /* Frameworks */,
 				95467E0A2E02037B00885C6F /* Resources */,
+				952695672E0732B40087F470 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				952695612E0732B40087F470 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				95467E0E2E02037B00885C6F /* dream */,
@@ -217,6 +296,9 @@
 				LastSwiftUpdateCheck = 1640;
 				LastUpgradeCheck = 1640;
 				TargetAttributes = {
+					9526954C2E0732B30087F470 = {
+						CreatedOnToolsVersion = 16.4;
+					};
 					95467E0B2E02037B00885C6F = {
 						CreatedOnToolsVersion = 16.4;
 					};
@@ -247,11 +329,19 @@
 				95467E0B2E02037B00885C6F /* dream */,
 				95467E182E02037C00885C6F /* dreamTests */,
 				95467E222E02037C00885C6F /* dreamUITests */,
+				9526954C2E0732B30087F470 /* DreamWidgetsExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		9526954B2E0732B30087F470 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		95467E0A2E02037B00885C6F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -276,6 +366,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		952695492E0732B30087F470 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		95467E082E02037B00885C6F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -300,6 +397,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		952695612E0732B40087F470 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9526954C2E0732B30087F470 /* DreamWidgetsExtension */;
+			targetProxy = 952695602E0732B40087F470 /* PBXContainerItemProxy */;
+		};
 		95467E1B2E02037C00885C6F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 95467E0B2E02037B00885C6F /* dream */;
@@ -313,6 +415,60 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		952695642E0732B40087F470 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5L2TJ5BA64;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DreamWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DreamWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jaiden.dream.DreamWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		952695652E0732B40087F470 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5L2TJ5BA64;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DreamWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DreamWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jaiden.dream.DreamWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		95467E2B2E02037C00885C6F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -573,6 +729,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		952695632E0732B40087F470 /* Build configuration list for PBXNativeTarget "DreamWidgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				952695642E0732B40087F470 /* Debug */,
+				952695652E0732B40087F470 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		95467E072E02037B00885C6F /* Build configuration list for PBXProject "dream" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

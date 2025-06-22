@@ -51,7 +51,7 @@ public final class CaptureViewModel {
         listen(to: store)
     }
 
-    func startOrStop() {
+    public func startOrStop() {
         switch state {
         case .idle, .paused, .saved:
             Task { await beginRecording() }
