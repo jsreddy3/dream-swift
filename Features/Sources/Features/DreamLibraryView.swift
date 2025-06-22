@@ -3,12 +3,15 @@ import Infrastructure
 import DomainLogic
 import Foundation
 import SwiftUI
+import AVKit
+
 struct DreamLibraryView: View {
     @State private var vm: DreamLibraryViewModel
     @State private var open: UUID? = nil                 // restore
     @State private var clips: [UUID: [AudioSegment]] = [:]
     @State private var editing: Dream? = nil
     @State private var draft = ""
+    @State private var playingDream: Dream? = nil  // Changed to track which dream is playing
 
     init(viewModel: DreamLibraryViewModel) {
         _vm = State(initialValue: viewModel)
@@ -49,9 +52,23 @@ struct DreamLibraryView: View {
 
                 Spacer(minLength: 12)
 
-                Text(dream.state == .draft ? "Draft" : "Done")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(dream.state == .draft ? "Draft" : dream.state == .video_generated ? "Video Ready" : "Done")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                    if dream.state == .video_generated && dream.videoS3Key != nil {
+                        Button(action: {
+                            print("Play button tapped for dream: \(dream.id)")
+                            playingDream = dream
+                        }) {
+                            Image(systemName: "play.circle.fill")
+                                .foregroundColor(.accentColor)
+                                .font(.title2)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
 
 
@@ -65,6 +82,10 @@ struct DreamLibraryView: View {
         }
         .task { await vm.refresh() }
         .navigationTitle("Dream Library")
+        // ――― video player ―――
+        .sheet(item: $playingDream) { dream in
+            VideoLoadingView(dream: dream, store: vm.store, isPresented: $playingDream)
+        }
         // ――― rename sheet ―――
         .sheet(item: $editing) { dream in
             NavigationStack {
@@ -79,6 +100,67 @@ struct DreamLibraryView: View {
                 .toolbar { ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { editing = nil }
                 }}
+            }
+        }
+    }
+}
+
+// New view to handle async loading
+struct VideoLoadingView: View {
+    let dream: Dream
+    let store: SyncingDreamStore
+    @Binding var isPresented: Dream?
+    @State private var videoURL: URL?
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+    
+    var body: some View {
+        Group {
+            if isLoading {
+                VStack {
+                    ProgressView("Loading video...")
+                        .padding()
+                    Button("Cancel") {
+                        isPresented = nil
+                    }
+                }
+            } else if let url = videoURL {
+                VideoPlayerView(url: url, isPresented: Binding(
+                    get: { isPresented != nil },
+                    set: { if !$0 { isPresented = nil } }
+                ))
+            } else {
+                VStack {
+                    Text("Failed to load video")
+                        .font(.headline)
+                    if let error = errorMessage {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Button("Close") {
+                        isPresented = nil
+                    }
+                    .padding()
+                }
+            }
+        }
+        .task {
+            do {
+                print("VideoLoadingView: Fetching URL for dream \(dream.id)")
+                if let url = try await store.getVideoURL(dreamID: dream.id) {
+                    print("VideoLoadingView: Got URL: \(url)")
+                    videoURL = url
+                    isLoading = false
+                } else {
+                    print("VideoLoadingView: No URL returned")
+                    errorMessage = "No video URL available"
+                    isLoading = false
+                }
+            } catch {
+                print("VideoLoadingView: Error: \(error)")
+                errorMessage = error.localizedDescription
+                isLoading = false
             }
         }
     }

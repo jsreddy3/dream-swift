@@ -140,6 +140,14 @@ public actor SyncingDreamStore: DreamStore, Sendable {
         return cached
     }
     
+    public func getVideoURL(dreamID: UUID) async throws -> URL? {
+        // Video URLs are only available from remote
+        if isOnline {
+            return try await remote.getVideoURL(dreamID: dreamID)
+        }
+        return nil
+    }
+    
     public func drain() async {
         guard isOnline else { return }
 

@@ -35,4 +35,5 @@ public protocol DreamStore: Sendable {
     func markCompleted(_ dreamID: UUID) async throws
     func allDreams() async throws -> [Dream]
     func updateTitle(dreamID: UUID, title: String) async throws
+    func getVideoURL(dreamID: UUID) async throws -> URL?
 }
