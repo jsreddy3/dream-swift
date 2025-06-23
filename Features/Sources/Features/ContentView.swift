@@ -53,7 +53,7 @@ public struct ContentView: View {
                 }
             }
             .padding()
-            .navigationTitle("Capture")          // ← nav-bar title
+//            .navigationTitle("Capture")          // ← nav-bar title
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {      // ← fix ①
                     Button { showLibrary = true } label: {            // ← fix ②
@@ -93,5 +93,17 @@ public struct ContentView: View {
 
     private func color(for s: CaptureState) -> Color {
         s == .recording ? .red : .accentColor
+    }
+}
+
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        let recorder = AudioRecorderActor()
+        let localStore = FileDreamStore()
+        let remoteStore = RemoteDreamStore(baseURL: URL(string: "http://localhost:8000")!)
+        let syncStore = SyncingDreamStore(local: localStore, remote: remoteStore)
+        let sampleViewModel = CaptureViewModel(recorder: recorder, store: syncStore)
+        
+        return ContentView(viewModel: sampleViewModel)
     }
 }

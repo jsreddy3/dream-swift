@@ -165,3 +165,16 @@ struct VideoLoadingView: View {
         }
     }
 }
+
+struct DreamLibraryView_Previews: PreviewProvider {
+    static var previews: some View {
+        let localStore = FileDreamStore()
+        let remoteStore = RemoteDreamStore(baseURL: URL(string: "http://localhost:8000")!)
+        let syncStore = SyncingDreamStore(local: localStore, remote: remoteStore)
+        let sampleViewModel = DreamLibraryViewModel(store: syncStore)
+        
+        return NavigationStack {
+            DreamLibraryView(viewModel: sampleViewModel)
+        }
+    }
+}
