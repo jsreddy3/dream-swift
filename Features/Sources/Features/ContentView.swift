@@ -13,6 +13,9 @@ public struct ContentView: View {
     public var body: some View {
         NavigationStack {                        // ← just this wrapper is new
             VStack(spacing: 24) {                // ← your existing layout
+                LoopingVideoView(named: "runway_campfire_animation")
+                    .frame(width: 200, height: 200)
+                
                 Text(label(for: vm.state)).font(.headline)
 
                 Button(action: { vm.startOrStop() }) {
