@@ -54,7 +54,7 @@ struct LoopingVideoView: View {
                 model.player.pause()
                 print("Paused video")
             }
-            .onChange(of: scenePhase) { newPhase in
+            .onChange(of: scenePhase) { _, newPhase in
                 switch newPhase {
                 case .active:
                     model.player.play()
