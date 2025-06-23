@@ -35,6 +35,7 @@ final class LoopingPlayerModel: ObservableObject {
 // Thin SwiftUI wrapper
 struct LoopingVideoView: View {
     @StateObject private var model: LoopingPlayerModel
+    @Environment(\.scenePhase) private var scenePhase
     
     init(named name: String, fileExtension ext: String = "mp4", muted: Bool = true) {
         _model = StateObject(wrappedValue: LoopingPlayerModel(resource: name, ext: ext, muted: muted))
@@ -52,6 +53,18 @@ struct LoopingVideoView: View {
             .onDisappear { 
                 model.player.pause()
                 print("Paused video")
+            }
+            .onChange(of: scenePhase) { newPhase in
+                switch newPhase {
+                case .active:
+                    model.player.play()
+                    print("Resumed video playback")
+                case .background:
+                    model.player.pause()
+                    print("Paused video for background")
+                default:
+                    break
+                }
             }
     }
 }
