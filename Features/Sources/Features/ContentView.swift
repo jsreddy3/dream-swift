@@ -13,7 +13,12 @@ public struct ContentView: View {
     public var body: some View {
         NavigationStack {                        // ← just this wrapper is new
             VStack(spacing: 24) {                // ← your existing layout
-                Text(label(for: vm.state)).font(.headline)
+                LoopingVideoView(named: "campfire_fullrange")
+                    .frame(width: 300, height: 300)
+                    .fixedSize()
+                    .cornerRadius(50)
+                
+                Text(label(for: vm.state)).font(.custom("Avenir-Medium", size: 20))
 
                 Button(action: { vm.startOrStop() }) {
                     Image(systemName: icon(for: vm.state))
@@ -27,7 +32,7 @@ public struct ContentView: View {
                     TextField("Dream title", text: $vm.title)
                         .textFieldStyle(.roundedBorder)
                         .padding(.horizontal)
-                    Button("Complete Dream Recording") { vm.finish() }.font(.title3)
+                    Button("Complete Dream Recording") { vm.finish() }.font(.custom("Avenir-Heavy", size: 18))
                 }
 
                 if !vm.segments.isEmpty {
@@ -38,7 +43,7 @@ public struct ContentView: View {
                                     .fontWeight(.semibold)
                                 if let t = seg.transcript, !t.isEmpty {
                                     Text(t)
-                                        .font(.caption)
+                                        .font(.custom("Avenir", size: 14))
                                         .foregroundStyle(.secondary)
                                         .lineLimit(2)     // truncate long sentences nicely
                                 }
@@ -52,8 +57,11 @@ public struct ContentView: View {
                     .frame(maxHeight: 200)
                 }
             }
-            .padding()
-            .navigationTitle("Capture")          // ← nav-bar title
+            // .padding(.horizontal)
+            // .padding(.bottom)
+            // .padding(.top, 8)
+        //    .navigationTitle("Capture")          // ← nav-bar title
+            // .navigationBarHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {      // ← fix ①
                     Button { showLibrary = true } label: {            // ← fix ②
@@ -75,11 +83,11 @@ public struct ContentView: View {
 
     private func label(for s: CaptureState) -> String {
         switch s {
-        case .idle:     "Ready"
+        case .idle:     "Tap to record"
         case .recording:"Recording…"
         case .paused:   "Paused"
         case .saving:   "Saving…"
-        case .saved:    "Saved ✅"
+        case .saved:    "Saved!"
         case .failed(let msg): msg
         }
     }
@@ -93,5 +101,17 @@ public struct ContentView: View {
 
     private func color(for s: CaptureState) -> Color {
         s == .recording ? .red : .accentColor
+    }
+}
+
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        let recorder = AudioRecorderActor()
+        let localStore = FileDreamStore()
+        let remoteStore = RemoteDreamStore(baseURL: URL(string: "http://localhost:8000")!)
+        let syncStore = SyncingDreamStore(local: localStore, remote: remoteStore)
+        let sampleViewModel = CaptureViewModel(recorder: recorder, store: syncStore)
+        
+        return ContentView(viewModel: sampleViewModel)
     }
 }

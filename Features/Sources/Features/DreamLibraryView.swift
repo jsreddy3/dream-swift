@@ -82,6 +82,15 @@ struct DreamLibraryView: View {
         }
         .task { await vm.refresh() }
         .navigationTitle("Dream Library")
+        .navigationBarTitleDisplayMode(.large)
+        .onAppear {
+            // Set custom font for navigation title
+            let appearance = UINavigationBarAppearance()
+            appearance.largeTitleTextAttributes = [.font: UIFont(name: "Avenir-Heavy", size: 34) ?? UIFont.systemFont(ofSize: 34)]
+            appearance.titleTextAttributes = [.font: UIFont(name: "Avenir-Medium", size: 18) ?? UIFont.systemFont(ofSize: 18)]
+            UINavigationBar.appearance().standardAppearance = appearance
+            UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        }
         // ――― video player ―――
         .sheet(item: $playingDream) { dream in
             VideoLoadingView(dream: dream, store: vm.store, isPresented: $playingDream)
@@ -162,6 +171,19 @@ struct VideoLoadingView: View {
                 errorMessage = error.localizedDescription
                 isLoading = false
             }
+        }
+    }
+}
+
+struct DreamLibraryView_Previews: PreviewProvider {
+    static var previews: some View {
+        let localStore = FileDreamStore()
+        let remoteStore = RemoteDreamStore(baseURL: URL(string: "http://localhost:8000")!)
+        let syncStore = SyncingDreamStore(local: localStore, remote: remoteStore)
+        let sampleViewModel = DreamLibraryViewModel(store: syncStore)
+        
+        return NavigationStack {
+            DreamLibraryView(viewModel: sampleViewModel)
         }
     }
 }
