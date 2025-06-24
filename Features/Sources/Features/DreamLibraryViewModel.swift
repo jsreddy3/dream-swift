@@ -7,7 +7,7 @@ import Observation
 
 @MainActor
 @Observable
-final class DreamLibraryViewModel {
+public final class DreamLibraryViewModel {
     let store: SyncingDreamStore
     
     private let fetch: GetDreamLibrary

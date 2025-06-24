@@ -11,6 +11,8 @@
 	<array>
 		<string>com.dreamfinder.sync</string>
 	</array>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -60,7 +62,5 @@
 	</dict>
 	<key>UIFileSharingEnabled</key>
 	<false/>
-	<key>CFBundleIconName</key>
-	<string>AppIcon</string>
 </dict>
 </plist>
