@@ -18,67 +18,75 @@ struct DreamLibraryView: View {
     }
 
     var body: some View {
-        List(vm.dreams) { dream in
-            // ――― helpers so each closure is tiny ―――
-            let isExpanded = Binding(
-                get: { open == dream.id && editing == nil },
-                set: { expanded in
-                    open = expanded ? dream.id : nil
-                    if expanded && clips[dream.id] == nil {
-                        Task { clips[dream.id] = try? await vm.segments(for: dream) }
+        if vm.dreams.isEmpty {
+            Text("No dreams recorded yet")
+                .font(.custom("Avenir-Medium", size: 18))
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(UIColor.systemBackground))
+        } else {
+            List(vm.dreams) { dream in
+                // ――― helpers so each closure is tiny ―――
+                let isExpanded = Binding(
+                    get: { open == dream.id && editing == nil },
+                    set: { expanded in
+                        open = expanded ? dream.id : nil
+                        if expanded && clips[dream.id] == nil {
+                            Task { clips[dream.id] = try? await vm.segments(for: dream) }
+                        }
+                    })
+
+                let clipList = Group {
+                    if let segs = clips[dream.id] {
+                        ForEach(segs, id: \.id) {
+                            Text("Clip \($0.order) – \(Int($0.duration)) s")
+                        }
+                    } else { ProgressView() }
+                }
+
+                let rowLabel = HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(dream.title.isEmpty ? "Untitled" : dream.title)
+                            .fontWeight(.semibold)
+
+                        if let t = dream.transcript, !t.isEmpty {
+                            Text(t)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)                     // truncate long transcripts
+                        }
                     }
-                })
 
-            let clipList = Group {
-                if let segs = clips[dream.id] {
-                    ForEach(segs, id: \.id) {
-                        Text("Clip \($0.order) – \(Int($0.duration)) s")
-                    }
-                } else { ProgressView() }
-            }
+                    Spacer(minLength: 12)
 
-            let rowLabel = HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(dream.title.isEmpty ? "Untitled" : dream.title)
-                        .fontWeight(.semibold)
-
-                    if let t = dream.transcript, !t.isEmpty {
-                        Text(t)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(dream.state == .draft ? "Draft" : dream.state == .video_generated ? "Video Ready" : "Done")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .lineLimit(2)                     // truncate long transcripts
-                    }
-                }
-
-                Spacer(minLength: 12)
-
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(dream.state == .draft ? "Draft" : dream.state == .video_generated ? "Video Ready" : "Done")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    
-                    if dream.state == .video_generated && dream.videoS3Key != nil {
-                        Button(action: {
-                            print("Play button tapped for dream: \(dream.id)")
-                            playingDream = dream
-                        }) {
-                            Image(systemName: "play.circle.fill")
-                                .foregroundColor(.accentColor)
-                                .font(.title2)
+                        
+                        if dream.state == .video_generated && dream.videoS3Key != nil {
+                            Button(action: {
+                                print("Play button tapped for dream: \(dream.id)")
+                                playingDream = dream
+                            }) {
+                                Image(systemName: "play.circle.fill")
+                                    .foregroundColor(.accentColor)
+                                    .font(.title2)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
+
+
+                DisclosureGroup(isExpanded: isExpanded) { clipList } label: { rowLabel }
+                    .swipeActions {
+                        Button("Rename") {
+                            draft   = dream.title
+                            editing = dream
+                        }
+                    }
             }
-
-
-            DisclosureGroup(isExpanded: isExpanded) { clipList } label: { rowLabel }
-                .swipeActions {
-                    Button("Rename") {
-                        draft   = dream.title
-                        editing = dream
-                    }
-                }
         }
         .task { await vm.refresh() }
         .navigationTitle("Dream Library")
