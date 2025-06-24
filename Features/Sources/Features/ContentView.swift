@@ -18,7 +18,7 @@ public struct ContentView: View {
                     .fixedSize()
                     .cornerRadius(50)
                 
-                Text(label(for: vm.state)).font(.headline)
+                Text(label(for: vm.state)).font(.custom("Avenir-Medium", size: 20))
 
                 Button(action: { vm.startOrStop() }) {
                     Image(systemName: icon(for: vm.state))
@@ -32,7 +32,7 @@ public struct ContentView: View {
                     TextField("Dream title", text: $vm.title)
                         .textFieldStyle(.roundedBorder)
                         .padding(.horizontal)
-                    Button("Complete Dream Recording") { vm.finish() }.font(.title3)
+                    Button("Complete Dream Recording") { vm.finish() }.font(.custom("Avenir-Heavy", size: 18))
                 }
 
                 if !vm.segments.isEmpty {
@@ -43,7 +43,7 @@ public struct ContentView: View {
                                     .fontWeight(.semibold)
                                 if let t = seg.transcript, !t.isEmpty {
                                     Text(t)
-                                        .font(.caption)
+                                        .font(.custom("Avenir", size: 14))
                                         .foregroundStyle(.secondary)
                                         .lineLimit(2)     // truncate long sentences nicely
                                 }
@@ -87,7 +87,7 @@ public struct ContentView: View {
         case .recording:"Recording…"
         case .paused:   "Paused"
         case .saving:   "Saving…"
-        case .saved:    "Saved ✅"
+        case .saved:    "Saved!"
         case .failed(let msg): msg
         }
     }

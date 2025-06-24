@@ -60,6 +60,7 @@ struct DreamApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(viewModel: captureVM)
+                .font(.custom("Avenir", size: 17))
                 .onOpenURL { url in
                     guard url.scheme == "dreamrec",
                           url.host   == "capture" else { return }
