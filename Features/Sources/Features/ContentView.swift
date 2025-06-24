@@ -13,8 +13,10 @@ public struct ContentView: View {
     public var body: some View {
         NavigationStack {                        // ← just this wrapper is new
             VStack(spacing: 24) {                // ← your existing layout
-                LoopingVideoView(named: "runway_campfire_animation")
-                    .frame(width: 200, height: 200)
+                LoopingVideoView(named: "campfire_fullrange")
+                    .frame(width: 300, height: 300)
+                    .fixedSize()
+                    .cornerRadius(50)
                 
                 Text(label(for: vm.state)).font(.headline)
 
@@ -55,8 +57,11 @@ public struct ContentView: View {
                     .frame(maxHeight: 200)
                 }
             }
-            .padding()
-//            .navigationTitle("Capture")          // ← nav-bar title
+            // .padding(.horizontal)
+            // .padding(.bottom)
+            // .padding(.top, 8)
+           .navigationTitle("Capture")          // ← nav-bar title
+            // .navigationBarHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {      // ← fix ①
                     Button { showLibrary = true } label: {            // ← fix ②
@@ -78,7 +83,7 @@ public struct ContentView: View {
 
     private func label(for s: CaptureState) -> String {
         switch s {
-        case .idle:     "Ready"
+        case .idle:     "Tap to record"
         case .recording:"Recording…"
         case .paused:   "Paused"
         case .saving:   "Saving…"

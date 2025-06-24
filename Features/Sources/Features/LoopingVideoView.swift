@@ -44,8 +44,8 @@ struct LoopingVideoView: View {
     var body: some View {
         VideoPlayer(player: model.player)
             .disabled(true)
-            .scaledToFill()
-            .ignoresSafeArea()
+            .aspectRatio(contentMode: .fill)
+            .clipped()
             .onAppear { 
                 model.player.play()
                 print("Started playing video")
