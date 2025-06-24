@@ -157,7 +157,15 @@ public final class CaptureViewModel {
     
     private func refreshSegments() async throws {
         guard let id = dreamID else { return }
-        segments = try await querySegments(id)
+        let latest = try await querySegments(id)
+
+        #if DEBUG
+        let all = latest.map(\.id)
+        let unique = Set(all)
+        assert(all.count == unique.count, "Duplicate IDs in segments: \(all)")
+        #endif
+
+        segments = latest
     }
 
     private func reset() {

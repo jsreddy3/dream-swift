@@ -96,6 +96,16 @@ public actor FileDreamStore: DreamStore, Sendable {
         try await write(dream)                                    // atomic replace
     }
     
+    public func upsertSegment(_ seg: AudioSegment, dreamID: UUID) async throws {
+        var dream = try await read(dreamID)                // fresh snapshot *now*
+        if let i = dream.segments.firstIndex(where: { $0.id == seg.id }) {
+            dream.segments[i] = seg                        // overwrite in place
+        } else {
+            dream.segments.append(seg)                     // truly new row
+        }
+        try await write(dream)                             // atomic replace
+    }
+    
     public func allDreams() async throws -> [Dream] {
         let files = try FileManager.default.contentsOfDirectory(at: root,
                             includingPropertiesForKeys: nil)

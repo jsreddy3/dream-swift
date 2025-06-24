@@ -81,7 +81,12 @@ public actor SyncingDreamStore: DreamStore, Sendable {
         enqueue(.append(dreamID: dreamID, segment: segment))
     }
     public func removeSegment(dreamID: UUID, segmentID: UUID) async throws {
-        try await local.removeSegment(dreamID: dreamID, segmentID: segmentID)
+        do {
+            try await local.removeSegment(dreamID: dreamID, segmentID: segmentID)
+        } catch {
+            NSLog("mergeTranscript: remove failed with \(error)")
+            assertionFailure("removeSegment failed: \(error)")
+        }
         enqueue(.remove(dreamID: dreamID, segmentID: segmentID))
     }
     public func markCompleted(_ id: UUID) async throws {
@@ -227,7 +232,7 @@ public actor SyncingDreamStore: DreamStore, Sendable {
 
         // Rewrite: drop old, add new (preserves order property)
         try await local.removeSegment(dreamID: r.dreamID, segmentID: r.segmentID)
-        try await local.appendSegment(dreamID: r.dreamID, segment: updated)
+        try await local.upsertSegment(updated, dreamID: r.dreamID)
     }
 }
 

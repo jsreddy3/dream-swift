@@ -35,6 +35,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     private let continuation: AsyncStream<UploadResult>.Continuation
 
     public var uploads: AsyncStream<UploadResult> { stream }
+    private var activeStreams: [UUID: Task<(), Never>] = [:]
 
     public init(baseURL: URL,
                 session: URLSession = .shared) {
@@ -67,6 +68,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         // optimistic update happens in the caller’s layer;
         // we just schedule the slow part and return.
         let path = try localPath(for: segment.filename)
+        ensureSSE(for: dreamID)
 
         Task.detached(priority: .utility) { [weak self] in
             await self?._uploadAndRegister(dreamID, segment, path)
@@ -86,7 +88,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
 
     public func segments(dreamID: UUID) async throws -> [AudioSegment] {
         let req = try makeRequest(
-            path: "dreams/\(dreamID)/segments/",
+            path: "dreams/\(dreamID)/segments",
             method: "GET"
         )
         return try await decode([AudioSegment].self, from: req)
@@ -94,7 +96,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     
     public func getTranscript(dreamID: UUID) async throws -> String? {
         let req = try makeRequest(
-            path: "dreams/\(dreamID)/transcript/",
+            path: "dreams/\(dreamID)/transcript",
             method: "GET"
         )
         let transcript = try await performReturningTranscript(req)
@@ -107,10 +109,11 @@ public actor RemoteDreamStore: DreamStore, Sendable {
             method: "POST"
         )
         try await perform(req)
+        cancelSSE(for: dreamID)            // no more transcripts will arrive
     }
 
     public func allDreams() async throws -> [Dream] {
-        let req = try makeRequest(path: "list-dreams/", method: "GET")
+        let req = try makeRequest(path: "dreams/", method: "GET")
         let all_dreams = try await decode([Dream].self, from: req)
         return all_dreams
     }
@@ -126,6 +129,51 @@ public actor RemoteDreamStore: DreamStore, Sendable {
             json: Payload(title: title)
         )
         try await perform(req)
+    }
+    
+    // MARK - SSE
+    /// Opens (or re-opens) the server-sent-events pipe for one dream.
+    private func ensureSSE(for did: UUID) {
+        guard activeStreams[did] == nil else { return }        // already running
+
+        let url = base
+            .appendingPathComponent("dreams")
+            .appendingPathComponent(did.uuidString)
+            .appendingPathComponent("stream")
+
+        let task = Task.detached(priority: .utility) { [weak self] in
+            // hop out if the store vanishes while the task is still alive
+            guard let self else { return }
+
+            do {
+                let (bytes, _) = try await self.session.bytes(from: url)
+
+                for try await line in bytes.lines {
+                    guard line.hasPrefix("data: ") else { continue }
+
+                    let payload = line.dropFirst(6)                    // strip "data: "
+                    if let data = payload.data(using: .utf8),
+                       let evt = try? self.decoder.decode(StreamEvent.self, from: data),
+                       !evt.transcript.isEmpty {
+
+                        await self.continuation.yield(
+                            .init(dreamID: did,
+                                  segmentID: evt.segment_id,
+                                  transcript: evt.transcript))
+                    }
+                }
+            } catch {
+                // network closed or server hung up — silently drop the stream
+                await self.cancelSSE(for: did)
+            }
+        }
+
+        activeStreams[did] = task
+    }
+
+
+    private func cancelSSE(for did: UUID) {
+        activeStreams.removeValue(forKey: did)?.cancel()
     }
 
     // MARK: – Helpers (small, focused)
@@ -148,7 +196,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
                 s3_key: signed.s3Key
             )
             let req = try makeRequest(
-                        path: "/dreams/\(dreamID)/segments/",
+                        path: "/dreams/\(dreamID)/segments",
                         method: "POST",
                         json: payload
                     )
@@ -167,7 +215,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         }
     }
 
-    private struct Presigned: Decodable { let upload_url: URL; let s3_key: String }
+    private struct Presigned: Decodable { let upload_url: URL; let upload_key: String }
     private struct RegisterPayload: Encodable {
         let segment_id: UUID
         let filename: String
@@ -185,7 +233,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         comps.scheme = base.scheme
         comps.host   = base.host
         comps.port   = base.port
-        comps.path   = "/dreams/\(id)/upload-url/"       // ← no leading /
+        comps.path   = "/dreams/\(id)/upload-url"       // ← no leading /
         comps.queryItems = [.init(name: "filename", value: filename)]
 
         var req = URLRequest(url: comps.url!)
@@ -200,7 +248,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         }
 
         let presigned = try decoder.decode(Presigned.self, from: data)
-        return (presigned.upload_url, presigned.s3_key)
+        return (presigned.upload_url, presigned.upload_key)
     }
 
     private func upload(local path: URL, to presigned: URL) async throws {
@@ -210,17 +258,26 @@ public actor RemoteDreamStore: DreamStore, Sendable {
                         userInfo: [NSLocalizedDescriptionKey: "Missing clip on disk"])
             )
         }
+
         var req = URLRequest(url: presigned)
-        req.httpMethod = "PUT"
-        req.httpBody = try Data(contentsOf: path)
-        req.setValue("audio/mpeg", forHTTPHeaderField: "Content-Type")
-        let (_, resp) = try await session.data(for: req)
-        guard (resp as? HTTPURLResponse)?.statusCode == 200 else {
+        req.httpMethod  = "PUT"
+        req.httpBody    = try Data(contentsOf: path)
+
+        // (Optional) Strip automatic headers that can break the signature.
+        req.setValue("", forHTTPHeaderField: "Expect")
+
+        let (data, resp) = try await session.data(for: req)
+
+        guard let http = resp as? HTTPURLResponse, http.statusCode == 200 else {
+            let body = String(data: data, encoding: .utf8) ?? "<no body>"
+            NSLog("S3 PUT failed \( (resp as? HTTPURLResponse)?.statusCode ?? -1 ): \(body)")
             throw RemoteError.badStatus(
-                (resp as? HTTPURLResponse)?.statusCode ?? -1, ""
+                (resp as? HTTPURLResponse)?.statusCode ?? -1,
+                body                                // ← preserve the body text
             )
         }
     }
+
 
     private func localPath(for filename: String) -> URL {
         let root = FileManager.default
@@ -306,4 +363,9 @@ public struct UploadResult: Sendable {
     public let dreamID: UUID
     public let segmentID: UUID
     public let transcript: String        // empty if Deepgram gave nothing
+}
+
+private struct StreamEvent: Decodable {
+    let segment_id: UUID           // matches JSON field names
+    let transcript: String
 }
