@@ -133,6 +133,11 @@ public actor FileDreamStore: DreamStore, Sendable {
         return transcript
     }
     
+    public func getVideoURL(dreamID: UUID) async throws -> URL? {
+        // File store doesn't handle video URLs - return nil
+        return nil
+    }
+    
     internal func replaceSegments(
             _ id: UUID,
             with newSegments: [AudioSegment]

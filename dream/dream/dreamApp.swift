@@ -38,7 +38,8 @@ struct DreamApp: App {
     init() {
         // build the data layer first
         let local  = FileDreamStore()
-        let remote = RemoteDreamStore(baseURL: URL(string: "http://192.168.0.149:8000")!)
+        let remote = RemoteDreamStore(baseURL: URL(string: "http://10.0.0.195:8000")!)
+        // let remote = RemoteDreamStore(baseURL: URL(string: "http://192.168.0.149:8000")!)
         let s      = SyncingDreamStore(local: local, remote: remote)
         store = s
         
@@ -47,18 +48,19 @@ struct DreamApp: App {
             initialValue: CaptureViewModel(recorder: recorder, store: s)
         )
         
-        // *after* every stored property is ready, it’s safe to touch `self`
+        // *after* every stored property is ready, it's safe to touch `self`
         appDelegate.configure(store: s)
     }
     
     // ──────────────────────────────────────────────────────────────
     //  UI scene
-    // ──────────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────
     @Environment(\.scenePhase) private var phase
     
     var body: some Scene {
         WindowGroup {
             ContentView(viewModel: captureVM)
+                .font(.custom("Avenir", size: 17))
                 .onOpenURL { url in
                     guard url.scheme == "dreamrec",
                           url.host   == "capture" else { return }

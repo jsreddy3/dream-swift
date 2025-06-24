@@ -175,6 +175,27 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     private func cancelSSE(for did: UUID) {
         activeStreams.removeValue(forKey: did)?.cancel()
     }
+        
+    public func getVideoURL(dreamID: UUID) async throws -> URL? {
+        let req = try makeRequest(
+            path: "dreams/\(dreamID)/video-url/",
+            method: "GET"
+        )
+        
+        struct VideoURLResponse: Decodable {
+            let video_url: URL
+            let expires_in: Int
+        }
+        
+        do {
+            let response = try await decode(VideoURLResponse.self, from: req)
+            return response.video_url
+        } catch RemoteError.notFound {
+            return nil
+        } catch RemoteError.badStatus(404, _) {
+            return nil
+        }
+    }
 
     // MARK: – Helpers (small, focused)
     
