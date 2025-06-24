@@ -60,7 +60,7 @@ public struct ContentView: View {
             // .padding(.horizontal)
             // .padding(.bottom)
             // .padding(.top, 8)
-           .navigationTitle("Capture")          // ← nav-bar title
+        //    .navigationTitle("Capture")          // ← nav-bar title
             // .navigationBarHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {      // ← fix ①
