@@ -97,6 +97,9 @@ struct DreamLibraryView: View {
                         : dream.state == .video_generated ? "Video Ready" : "Done")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .onAppear {
+                        print("Dream \(dream.id): state=\(dream.state.rawValue), videoS3Key=\(dream.videoS3Key ?? "nil")")
+                    }
 
                 if dream.state == .video_generated,
                    dream.videoS3Key != nil {
@@ -106,6 +109,11 @@ struct DreamLibraryView: View {
                             .foregroundColor(.accentColor)
                     }
                     .buttonStyle(.plain)
+                } else if dream.state == .video_generated {
+                    // Debug: video_generated but no S3 key
+                    Text("No S3 Key")
+                        .font(.caption2)
+                        .foregroundColor(.red)
                 }
             }
         }

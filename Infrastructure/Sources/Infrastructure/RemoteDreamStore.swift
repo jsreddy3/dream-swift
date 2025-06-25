@@ -114,8 +114,39 @@ public actor RemoteDreamStore: DreamStore, Sendable {
 
     public func allDreams() async throws -> [Dream] {
         let req = try makeRequest(path: "dreams/", method: "GET")
-        let all_dreams = try await decode([Dream].self, from: req)
-        return all_dreams
+        
+        // Debug: print raw response
+        let (data, _) = try await session.data(for: req)
+        if let jsonString = String(data: data, encoding: .utf8) {
+            print("RemoteDreamStore: Raw response from /dreams/:")
+            // Parse and pretty print to see structure
+            if let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] {
+                for (index, dream) in json.enumerated() {
+                    print("Dream \(index):")
+                    print("  id: \(dream["id"] ?? "nil")")
+                    print("  state: \(dream["state"] ?? "nil")")
+                    print("  video_url: \(dream["video_url"] ?? "nil")")
+                    print("  video_s3_key: \(dream["video_s3_key"] ?? "nil")")
+                    print("  has video_s3_key: \(dream.keys.contains("video_s3_key"))")
+                }
+            }
+        }
+        
+        do {
+            let all_dreams = try decoder.decode([Dream].self, from: data)
+            print("RemoteDreamStore: Decoded \(all_dreams.count) dreams")
+            for dream in all_dreams {
+                print("  - Dream \(dream.id): state=\(dream.state.rawValue), videoS3Key=\(dream.videoS3Key ?? "nil")")
+            }
+            return all_dreams
+        } catch {
+            print("RemoteDreamStore: Decoding error: \(error)")
+            // Try to decode what we can
+            if let json = try? JSONSerialization.jsonObject(with: data, options: []) {
+                print("Raw JSON: \(json)")
+            }
+            throw error
+        }
     }
 
     public func updateTitle(

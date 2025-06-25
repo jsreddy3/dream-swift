@@ -119,14 +119,22 @@ public actor SyncingDreamStore: DreamStore, Sendable {
         let cached = try await local.allDreams()
 
         if isOnline {
-            Task.detached { [weak self] in
-                guard let self else { return }
-                if let cloud = try? await self.remote.allDreams(),
-                   cloud != cached {
-                    for dream in cloud { try? await self.local.upsert(dream) }
+            // Fetch from remote synchronously to ensure UI gets latest data
+            if let cloud = try? await self.remote.allDreams() {
+                print("SyncingDreamStore: Got \(cloud.count) dreams from remote")
+                
+                // Update local cache with any changes
+                for dream in cloud {
+                    print("  - Dream \(dream.id): state=\(dream.state.rawValue), videoS3Key=\(dream.videoS3Key ?? "nil")")
+                    try? await self.local.upsert(dream)
                 }
+                
+                // Return the fresh data from remote
+                return cloud
             }
         }
+        
+        // Fall back to cached if offline or fetch fails
         return cached
     }
 
