@@ -38,8 +38,9 @@ struct DreamApp: App {
     init() {
         // build the data layer first
         let local  = FileDreamStore()
-        let remote = RemoteDreamStore(baseURL: URL(string: "http://10.0.0.195:8000")!)
-        //  let remote = RemoteDreamStore(baseURL: URL(string: "http://192.168.0.149:8000")!)
+//        let remote = RemoteDreamStore(baseURL: URL(string: "http://10.0.0.195:8000")!)
+//        let remote = RemoteDreamStore(baseURL: URL(string: "http://192.168.0.102:8000")!)
+        let remote = RemoteDreamStore(baseURL: URL(string: "https://backend-dream.fly.dev")!)
         let s      = SyncingDreamStore(local: local, remote: remote)
         store = s
         
