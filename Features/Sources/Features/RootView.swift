@@ -7,26 +7,27 @@ import DomainLogic             // for CaptureViewModel
 @MainActor                     // safe because it only talks to SwiftUI
 public final class AuthBridge: ObservableObject {
     private let backend: AuthStore
+    @Published var isAuthenticating = false   // ⟵ add this
     @Published var jwt: String?          // UI can react to this
 
     public init(_ backend: AuthStore) {
         self.backend = backend
         jwt = backend.jwt                // whatever is in the key-chain
-
-        // poll once a second so changes written by the actor propagate
-        Task {
-            for await _ in Timer.publish(every: 1,
-                                          on: .main,
-                                         in: .common).autoconnect().values {
-                jwt = backend.jwt
-            }
-        }
     }
 
     func signIn(presenting vc: UIViewController) async {
-        do { try await backend.signIn(from: vc) }
-        catch { print("Google sign-in failed: \(error)") }
-        jwt = backend.jwt
+        await MainActor.run { isAuthenticating = true }
+
+        // • The defer must not contain ‘await’.
+        // • Wrapping the mutation in Task { @MainActor in … } is allowed.
+        defer { Task { @MainActor in self.isAuthenticating = false } }
+
+        do {
+            try await backend.signIn(from: vc)          // Google + backend
+            await MainActor.run { jwt = backend.jwt }   // immediate UI update
+        } catch {
+            print("Google sign-in failed: \(error)")
+        }
     }
     
     @MainActor
@@ -48,12 +49,22 @@ public struct RootView: View {                      // ← public
     }
 
     public var body: some View {
-        Group {
-            if auth.jwt == nil {
+        if auth.jwt == nil {
+            ZStack {                               // keep hierarchy stable
                 SignInView(auth: auth)
-            } else {
-                ContentView(viewModel: captureVM).environmentObject(auth)
+                    .opacity(auth.isAuthenticating ? 0 : 1)   // ← hide button
+
+                if auth.isAuthenticating {
+                    Color.black.opacity(0.2).ignoresSafeArea() // dim background
+                    ProgressView("Signing in…")
+                        .padding()
+                        .background(.thinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
             }
+        } else {
+            ContentView(viewModel: captureVM)
+                .environmentObject(auth)
         }
     }
 }
