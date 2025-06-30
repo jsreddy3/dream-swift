@@ -33,14 +33,17 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     private let decoder = JSONDecoder()
     private let stream: AsyncStream<UploadResult>
     private let continuation: AsyncStream<UploadResult>.Continuation
+    private let auth: AuthStore
 
     public var uploads: AsyncStream<UploadResult> { stream }
     private var activeStreams: [UUID: Task<(), Never>] = [:]
 
     public init(baseURL: URL,
-                session: URLSession = .shared) {
+                session: URLSession = .shared,
+                auth: AuthStore) {
         self.base = baseURL
         self.session = session
+        self.auth = auth
         var c: AsyncStream<UploadResult>.Continuation!
         self.stream = AsyncStream { c = $0 }
         self.continuation = c
@@ -52,7 +55,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
 
     public func insertNew(_ dream: Dream) async throws {
         struct Payload: Encodable { let id: UUID; let title: String }
-        let req = try makeRequest(
+        let req = try await makeRequest(
             path: "dreams/",
             method: "POST",
             json: Payload(id: dream.id, title: dream.title)
@@ -79,7 +82,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         dreamID: UUID,
         segmentID: UUID
     ) async throws {
-        let req = try makeRequest(
+        let req = try await makeRequest(
             path: "dreams/\(dreamID)/segments/\(segmentID)",
             method: "DELETE"
         )
@@ -87,7 +90,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     }
 
     public func segments(dreamID: UUID) async throws -> [AudioSegment] {
-        let req = try makeRequest(
+        let req = try await makeRequest(
             path: "dreams/\(dreamID)/segments",
             method: "GET"
         )
@@ -95,7 +98,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     }
     
     public func getTranscript(dreamID: UUID) async throws -> String? {
-        let req = try makeRequest(
+        let req = try await makeRequest(
             path: "dreams/\(dreamID)/transcript",
             method: "GET"
         )
@@ -104,7 +107,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     }
 
     public func markCompleted(_ dreamID: UUID) async throws {
-        let req = try makeRequest(
+        let req = try await makeRequest(
             path: "dreams/\(dreamID)/finish",
             method: "POST"
         )
@@ -113,7 +116,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     }
 
     public func allDreams() async throws -> [Dream] {
-        let req = try makeRequest(path: "dreams/", method: "GET")
+        let req = try await makeRequest(path: "dreams/", method: "GET")
         
         // Debug: print raw response
         let (data, _) = try await session.data(for: req)
@@ -154,7 +157,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         title: String
     ) async throws {
         struct Payload: Encodable { let title: String }
-        let req = try makeRequest(
+        let req = try await makeRequest(
             path: "dreams/\(dreamID)",
             method: "PATCH",
             json: Payload(title: title)
@@ -208,7 +211,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     }
         
     public func getVideoURL(dreamID: UUID) async throws -> URL? {
-        let req = try makeRequest(
+        let req = try await makeRequest(
             path: "dreams/\(dreamID)/video-url/",
             method: "GET"
         )
@@ -247,7 +250,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
                 order: segment.order,
                 s3_key: signed.s3Key
             )
-            let req = try makeRequest(
+            let req = try await makeRequest(
                         path: "/dreams/\(dreamID)/segments",
                         method: "POST",
                         json: payload
@@ -342,28 +345,38 @@ public actor RemoteDreamStore: DreamStore, Sendable {
 
     // MARK: – Networking mini-primitives
     
+    // 1. No-body version
     private func makeRequest(
         path: String,
         method: String
-    ) throws -> URLRequest {
+    ) async throws -> URLRequest {
         var req = URLRequest(url: base.appendingPathComponent(path))
         req.httpMethod = method
+
+        if let token = try await auth.validJWT() {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         return req
     }
 
+    // 2. JSON-body overload
     private func makeRequest<T: Encodable>(
         path: String,
         method: String,
         json: T? = nil
-    ) throws -> URLRequest {
+    ) async throws -> URLRequest {              // ← async, not “await func”
         var req = URLRequest(url: base.appendingPathComponent(path))
         req.httpMethod = method
         if let body = json {
             req.httpBody = try encoder.encode(body)
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
+        if let token = try await auth.validJWT() {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         return req
     }
+
 
     private func perform(_ req: URLRequest) async throws {
         let (_, resp) = try await session.data(for: req)

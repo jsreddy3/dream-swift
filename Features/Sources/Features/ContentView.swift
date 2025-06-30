@@ -4,6 +4,7 @@ import DomainLogic
 
 public struct ContentView: View {
     @State private var vm: CaptureViewModel
+    @EnvironmentObject private var auth: AuthBridge
     @State private var showLibrary = false
 
     public init(viewModel: CaptureViewModel) {
@@ -68,6 +69,9 @@ public struct ContentView: View {
                         Image(systemName: "books.vertical")
                     }
                 }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Sign Out", role: .destructive) { auth.signOut() }
+                }
             }
             .sheet(isPresented: $showLibrary) { // ← modal library
                 NavigationStack {
@@ -108,7 +112,8 @@ struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         let recorder = AudioRecorderActor()
         let localStore = FileDreamStore()
-        let remoteStore = RemoteDreamStore(baseURL: URL(string: "http://localhost:8000")!)
+        let auth = AuthStore()
+        let remoteStore = RemoteDreamStore(baseURL: URL(string: "http://localhost:8000")!, auth: auth)
         let syncStore = SyncingDreamStore(local: localStore, remote: remoteStore)
         let sampleViewModel = CaptureViewModel(recorder: recorder, store: syncStore)
         

@@ -208,7 +208,8 @@ struct VideoLoadingView: View {
 
 #Preview {
     let local  = FileDreamStore()
-    let remote = RemoteDreamStore(baseURL: URL(string: "http://localhost:8000")!)
+    let auth = AuthStore()
+    let remote = RemoteDreamStore(baseURL: URL(string: "http://localhost:8000")!, auth: auth)
     let sync   = SyncingDreamStore(local: local, remote: remote)
     NavigationStack {
         DreamLibraryView(viewModel: DreamLibraryViewModel(store: sync))

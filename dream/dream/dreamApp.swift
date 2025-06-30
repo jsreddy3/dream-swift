@@ -7,6 +7,8 @@ import Features
 import Infrastructure
 import DomainLogic
 import BackgroundTasks
+import Configuration
+import GoogleSignIn
 
 // MARK: – Background-sync helper
 func scheduleDreamSync() {
@@ -15,6 +17,8 @@ func scheduleDreamSync() {
     req.requiresExternalPower      = false
     try? BGTaskScheduler.shared.submit(req)
 }
+
+private let sharedAuth = AuthStore()
 
 // MARK: – App entry point
 @main
@@ -28,49 +32,49 @@ struct DreamApp: App {
     
     private let recorder = AudioRecorderActor()
     private let store:    SyncingDreamStore
-    
+    private let auth = sharedAuth
+
     // `@Observable` class → store with @State
     @State private var captureVM: CaptureViewModel
+    @StateObject private var authBridge = AuthBridge(sharedAuth)   // ← no ‘self’
+
     
     // ──────────────────────────────────────────────────────────────
     //  Init
     // ──────────────────────────────────────────────────────────────
     init() {
-        // build the data layer first
+        GIDSignIn.sharedInstance.configuration =
+                GIDConfiguration(clientID: Config.googleClientID)
+        
         let local  = FileDreamStore()
-//        let remote = RemoteDreamStore(baseURL: URL(string: "http://10.0.0.195:8000")!)
-//        let remote = RemoteDreamStore(baseURL: URL(string: "http://192.168.0.102:8000")!)
-        let remote = RemoteDreamStore(baseURL: URL(string: "https://backend-dream.fly.dev")!)
+        let remote = RemoteDreamStore(
+            baseURL: Config.apiBase,
+            auth: sharedAuth)
         let s      = SyncingDreamStore(local: local, remote: remote)
-        store = s
-        
-        // now the view-model
-        _captureVM = State(
-            initialValue: CaptureViewModel(recorder: recorder, store: s)
-        )
-        
-        // *after* every stored property is ready, it's safe to touch `self`
-        appDelegate.configure(store: s)
+        store = s                                   // ← ‘let’ member initialised
+
+        // build the VM without touching self
+        let vm = CaptureViewModel(recorder: recorder, store: s)
+        _captureVM = State(wrappedValue: vm)        // ← no autoclosure capture
     }
-    
-    // ──────────────────────────────────────────────────────────────
-    //  UI scene
-    // ──────────────────────────────────────────────────────────────────
-    @Environment(\.scenePhase) private var phase
-    
+
+        // MARK: UI scene -----------------------------------------------------
+        @Environment(\.scenePhase) private var phase
+
     var body: some Scene {
-        WindowGroup {
-            ContentView(viewModel: captureVM)
-                .font(.custom("Avenir", size: 17))
-                .onOpenURL { url in
-                    guard url.scheme == "dreamrec",
-                          url.host   == "capture" else { return }
-                }
-        }
-        .onChange(of: phase) {
-            if phase == .background {
-                scheduleDreamSync()
+            WindowGroup {
+                RootView(auth: authBridge, captureVM: captureVM)
+                    .font(.custom("Avenir", size: 17))
+                    .onAppear {
+                        appDelegate.configure(store: store)
+                        print("Scheme present:",
+                              UIApplication.shared.canOpenURL(
+                                  URL(string: "com.googleusercontent.apps.291516817801-f96frg6p6qujejfml5b6i7l7bbk4f8ah:/")!
+                              )
+                        )
+
+                    }
             }
+            .onChange(of: phase) { if $0 == .background { scheduleDreamSync() } }
         }
-    }
 }

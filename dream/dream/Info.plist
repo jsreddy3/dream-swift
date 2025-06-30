@@ -11,6 +11,13 @@
 	<array>
 		<string>com.dreamfinder.sync</string>
 	</array>
+	<key>CFBundleGetInfoString</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string></string>
+		</dict>
+	</array>
 	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
 	<key>CFBundleURLTypes</key>
@@ -23,6 +30,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>dreamrec</string>
+				<string>com.googleusercontent.apps.291516817801-f96frg6p6qujejfml5b6i7l7bbk4f8ah</string>
 			</array>
 		</dict>
 	</array>
@@ -30,6 +38,8 @@
 	<dict>
 		<key>NSExceptionDomains</key>
 		<dict>
+			<key></key>
+			<string></string>
 			<key>10.0.0.195</key>
 			<dict>
 				<key>NSExceptionAllowsInsecureHTTPLoads</key>
@@ -62,11 +72,5 @@
 	</dict>
 	<key>UIFileSharingEnabled</key>
 	<false/>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>This app needs to access your local network to connect to the dream recording backend server on your local network.</string>
-	<key>NSBonjourServices</key>
-	<array>
-		<string>_http._tcp</string>
-	</array>
 </dict>
 </plist>

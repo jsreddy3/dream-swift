@@ -3,23 +3,26 @@ import PackageDescription
 
 let package = Package(
     name: "Infrastructure",
-    platforms: [                          // ← add this block
+    platforms: [
         .iOS("17.0"),
-        .macOS("12.0")
     ],
     products: [
         .library(name: "Infrastructure", targets: ["Infrastructure"])
     ],
-    dependencies: [                       // ← depend on the domain layer
+    dependencies: [
         .package(path: "../DomainLogic"),
-        .package(path: "../CoreModels")
+        .package(path: "../CoreModels"),
+        .package(path: "../Configuration"),
+        .package(
+                    url: "https://github.com/google/GoogleSignIn-iOS.git",
+                    from: "7.0.0"),
     ],
     targets: [
         .target(
             name: "Infrastructure",
-            dependencies: ["DomainLogic", "CoreModels"]),
-        .testTarget(
-            name: "InfrastructureTests",
-            dependencies: ["Infrastructure", "DomainLogic", "CoreModels"])
+            dependencies: ["DomainLogic", "CoreModels", "Configuration", .product(name: "GoogleSignIn", package: "GoogleSignIn-iOS")]),
+//        .testTarget(
+//            name: "InfrastructureTests",
+//            dependencies: ["Infrastructure", "DomainLogic", "CoreModels"])
     ]
 )

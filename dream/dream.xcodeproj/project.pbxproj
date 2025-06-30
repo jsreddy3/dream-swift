@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		950761912E1219FD00C3F5C2 /* Configuration in Frameworks */ = {isa = PBXBuildFile; productRef = 950761902E1219FD00C3F5C2 /* Configuration */; };
 		95092FAD2E034D5D0051A29F /* DomainLogic in Frameworks */ = {isa = PBXBuildFile; productRef = 95092FAC2E034D5D0051A29F /* DomainLogic */; };
 		95092FB02E034DB50051A29F /* CoreModels in Frameworks */ = {isa = PBXBuildFile; productRef = 95092FAF2E034DB50051A29F /* CoreModels */; };
 		95092FB42E036E490051A29F /* Features in Frameworks */ = {isa = PBXBuildFile; productRef = 95092FB32E036E490051A29F /* Features */; };
@@ -55,6 +56,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		9507618F2E12198000C3F5C2 /* Configuration */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = Configuration; path = ../Configuration; sourceTree = SOURCE_ROOT; };
 		95092FAB2E034D490051A29F /* DomainLogic */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = DomainLogic; path = ../DomainLogic; sourceTree = SOURCE_ROOT; };
 		95092FAE2E034DA30051A29F /* CoreModels */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = CoreModels; path = ../CoreModels; sourceTree = SOURCE_ROOT; };
 		95092FB12E035F170051A29F /* Infrastructure */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = Infrastructure; path = ../Infrastructure; sourceTree = SOURCE_ROOT; };
@@ -127,6 +129,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				950761912E1219FD00C3F5C2 /* Configuration in Frameworks */,
 				95092FB42E036E490051A29F /* Features in Frameworks */,
 				95092FAD2E034D5D0051A29F /* DomainLogic in Frameworks */,
 				95092FB02E034DB50051A29F /* CoreModels in Frameworks */,
@@ -163,6 +166,7 @@
 		95467E032E02037B00885C6F = {
 			isa = PBXGroup;
 			children = (
+				9507618F2E12198000C3F5C2 /* Configuration */,
 				95092FB22E036D8E0051A29F /* Features */,
 				95092FB12E035F170051A29F /* Infrastructure */,
 				95092FAE2E034DA30051A29F /* CoreModels */,
@@ -235,6 +239,7 @@
 				95092FAF2E034DB50051A29F /* CoreModels */,
 				95092FB32E036E490051A29F /* Features */,
 				95092FB52E036E4C0051A29F /* Infrastructure */,
+				950761902E1219FD00C3F5C2 /* Configuration */,
 			);
 			productName = dream;
 			productReference = 95467E0C2E02037B00885C6F /* dream.app */;
@@ -321,6 +326,8 @@
 			);
 			mainGroup = 95467E032E02037B00885C6F;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 95467E0D2E02037B00885C6F /* Products */;
 			projectDirPath = "";
@@ -599,9 +606,10 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = dream/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "";
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = NO;
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "DreamFinder needs local-network access to talk to the development server running on your Mac.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "This app needs to access your local network to connect to the dream recording backend server on your local network.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -634,9 +642,10 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = dream/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "";
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = NO;
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "DreamFinder needs local-network access to talk to the development server running on your Mac.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "This app needs to access your local network to connect to the dream recording backend server on your local network.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -777,6 +786,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		950761902E1219FD00C3F5C2 /* Configuration */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Configuration;
+		};
 		95092FAC2E034D5D0051A29F /* DomainLogic */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DomainLogic;
