@@ -292,7 +292,10 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         comps.queryItems = [.init(name: "filename", value: filename)]
 
         var req = URLRequest(url: comps.url!)
-        req.httpMethod = "POST"                         // ← make it POST
+        req.httpMethod = "POST"
+        if let token = try await auth.validJWT() {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         let (data, resp) = try await session.data(for: req)
         guard let http = resp as? HTTPURLResponse,
               200..<300 ~= http.statusCode else {
