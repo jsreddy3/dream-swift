@@ -67,9 +67,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         dreamID: UUID,
         segment: Segment
     ) async throws {
-
-        ensureSSE(for: dreamID)                 // one live SSE pipe per dream
-
+        
         switch segment.modality {
             // ---------- AUDIO: upload file, then register ----------
             case .audio:

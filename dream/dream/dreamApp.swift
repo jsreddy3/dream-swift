@@ -46,6 +46,10 @@ struct DreamApp: App {
         GIDSignIn.sharedInstance.configuration =
                 GIDConfiguration(clientID: Config.googleClientID)
         
+        Task { @MainActor in
+                try? await sharedAuth.ensureGoogleUserLoaded()
+            }
+        
         let local  = FileDreamStore()
         let remote = RemoteDreamStore(
             baseURL: Config.apiBase,

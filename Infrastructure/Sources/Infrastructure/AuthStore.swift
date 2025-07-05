@@ -51,6 +51,26 @@ public actor AuthStore: @unchecked Sendable {
         }
         return token
     }
+    
+    @MainActor
+    public func ensureGoogleUserLoaded() async throws {
+        // Nothing to do if there is no saved session or the user is already loaded.
+        guard GIDSignIn.sharedInstance.currentUser == nil,
+              GIDSignIn.sharedInstance.hasPreviousSignIn()
+        else { return }
+
+        try await withCheckedThrowingContinuation {
+            (cont: CheckedContinuation<Void, Error>) in      // ← tell Swift the T = Void
+
+            GIDSignIn.sharedInstance.restorePreviousSignIn { _, error in
+                if let error {
+                    cont.resume(throwing: error)             // propagate the Google SDK error
+                } else {
+                    cont.resume(returning: ())               // success, return Void
+                }
+            }
+        }
+    }
 
     // MARK: – Google -----------------------------------------------------
     @MainActor
