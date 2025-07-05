@@ -71,14 +71,17 @@ struct DreamApp: App {
                     .font(.custom("Avenir", size: 17))
                     .onAppear {
                         appDelegate.configure(store: store)
-                        print("Scheme present:",
-                              UIApplication.shared.canOpenURL(
-                                  URL(string: "com.googleusercontent.apps.291516817801-f96frg6p6qujejfml5b6i7l7bbk4f8ah:/")!
-                              )
-                        )
+                        Task { await store.drain() }                   // <─ run once, right now
+
 
                     }
             }
-            .onChange(of: phase) { if $0 == .background { scheduleDreamSync() } }
+            .onChange(of: phase) { newPhase in
+                if newPhase == .active {
+                    Task { await store.drain() }
+                } else if newPhase == .background {
+                    scheduleDreamSync()                        // your existing code
+                }
+            }
         }
 }

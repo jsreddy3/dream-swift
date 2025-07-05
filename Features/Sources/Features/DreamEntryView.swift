@@ -8,6 +8,8 @@ import CoreModels
 struct DreamEntryView: View {
     @StateObject private var vm: DreamEntryViewModel
     @FocusState private var addlInfoFocused: Bool
+    
+    @Environment(\.dismiss) private var dismiss
 
     init(dream: Dream, store: DreamStore) {
         _vm = StateObject(wrappedValue: DreamEntryViewModel(dream: dream, store: store))
@@ -15,18 +17,34 @@ struct DreamEntryView: View {
 
     var body: some View {
         ZStack {
-            if vm.dream.summary == nil {            // waiting on backend
-                VStack(spacing: 24) {
-                    LoopingVideoView(named: "campfire_fullrange")
-                        .frame(width: 240, height: 240)
-                        .cornerRadius(40)
-                    Text("Interpreting your dream…")
-                        .font(.custom("Avenir-Medium", size: 20))
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(.systemBackground))
-            } else {
+            if let err = vm.errorMessage {
+                    // ───────────── failed or timed-out ─────────────
+                    VStack(spacing: 16) {
+                        Image(systemName: "wifi.exclamationmark")
+                            .font(.system(size: 48))
+                            .foregroundColor(.secondary)
+                        Text(err)
+                            .font(.custom("Avenir-Medium", size: 18))
+                            .multilineTextAlignment(.center)
+                        Button("Close") {
+                            dismiss()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding()
+                } else if vm.dream.summary == nil {
+                    // ───────────── still working ─────────────
+                    VStack(spacing: 24) {
+                        LoopingVideoView(named: "campfire_fullrange")
+                            .frame(width: 240, height: 240)
+                            .cornerRadius(40)
+                        Text("Interpreting your dream…")
+                            .font(.custom("Avenir-Medium", size: 20))
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(.systemBackground))
+                } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
 

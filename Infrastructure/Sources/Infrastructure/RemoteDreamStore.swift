@@ -442,12 +442,19 @@ public actor RemoteDreamStore: DreamStore, Sendable {
 
 
     private func perform(_ req: URLRequest) async throws {
-        let (_, resp) = try await session.data(for: req)
-        guard let http = resp as? HTTPURLResponse else {
-            throw RemoteError.badStatus(-1, "")
-        }
-        guard 200..<300 ~= http.statusCode else {
-            throw RemoteError.badStatus(http.statusCode, "")
+        let (data, resp) = try await session.data(for: req)
+
+        if let http = resp as? HTTPURLResponse {
+            switch http.statusCode {
+            case 200..<300:                       // success → just return
+                return
+            case 404 where req.url?.path.hasSuffix("/finish") == true:
+                // Swallow “already finished / unknown ID”
+                print("Finish ignored: server doesn’t know this dream (404).")
+                return
+            default:
+                throw RemoteError.badStatus(http.statusCode, "")
+            }
         }
     }
     

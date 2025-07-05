@@ -1,63 +1,105 @@
-import SwiftUI
+//
+//  DreamEntryViewModel.swift
+//
+
+import Foundation               // async/await, Duration
+import SwiftUI                  // @MainActor, ObservableObject
 import Infrastructure
 import DomainLogic
 import CoreModels
 
-// MARK: ‑ View‑Model ------------------------------------------------------
-
 @MainActor
-final class DreamEntryViewModel: ObservableObject {
+public final class DreamEntryViewModel: ObservableObject {
+
+    // ──────────────────────────────────────────────────────────────
+    //  Published state
+    // ──────────────────────────────────────────────────────────────
     @Published private(set) var dream: Dream
-    @Published var isBusy = false
+    @Published var isBusy        = false
+    @Published var errorMessage: String?        // ← new
 
+    // ──────────────────────────────────────────────────────────────
+    //  Private bits
+    // ──────────────────────────────────────────────────────────────
     private let store: DreamStore
+    private let timeout: Duration = .seconds(5)
 
+    // ──────────────────────────────────────────────────────────────
+    //  Init
+    // ──────────────────────────────────────────────────────────────
     init(dream: Dream, store: DreamStore) {
         self.dream = dream
         self.store = store
-        Task { await ensureSummary() }      // kick off immediately
+        Task { [weak self] in await self?.ensureSummary() }
     }
 
-    /// Ensures we have a summary. If the server can’t produce one,
-    /// fall back to transcript or “”.
-    private func ensureSummary() async {
-        guard dream.summary == nil else { return }
+    // ──────────────────────────────────────────────────────────────
+    //  Public helpers (unchanged from the original file)
+    // ──────────────────────────────────────────────────────────────
+    func refresh() async {
+        do   { self.dream = try await self.store.getDream(self.dream.id) }
+        catch { NSLog("refresh failed: \(error)") }
+    }
 
-        isBusy = true
-        defer { isBusy = false }
+    func interpret() async {
+        guard self.dream.analysis == nil else { return }
+        await runWithBusyAndErrors {
+            try await self.store.requestAnalysis(for: self.dream.id)
+            try await Task.sleep(for: .seconds(15))      // crude poll
+            await self.refresh()
+        }
+    }
 
-        // try remote first; returns "" if store is offline-only
-        let remoteSummary = try? await store.generateSummary(for: dream.id)
+    // ──────────────────────────────────────────────────────────────
+    //  Summary generation with timeout + fallback
+    // ──────────────────────────────────────────────────────────────
+    func ensureSummary() async {
+        guard self.dream.summary == nil else { return }
+        await runWithBusyAndErrors {
+            try await self.generateSummaryWithTimeout()
+            await self.refresh()
 
-        // refresh local copy (may now hold remote result)
-        await refresh()
-
-        // backend returned nil/empty? patch in a local fallback
-        if dream.summary?.isEmpty ?? true {
-            let fallback = dream.transcript ?? ""
-            if !fallback.isEmpty {
-                // update on-disk copy so we don’t regenerate every visit
-                try? await store.generateSummaryFallback(id: dream.id, text: fallback)
-                await refresh()
+            if self.dream.summary?.isEmpty ?? true {
+                let fallback = self.dream.transcript ?? ""
+                if !fallback.isEmpty {
+                    try await self.store.generateSummaryFallback(id: self.dream.id,
+                                                                text: fallback)
+                    await self.refresh()
+                }
             }
         }
     }
 
-    /// Simple cache/remote refresh used by callers.
-    func refresh() async {
-        do   { dream = try await store.getDream(dream.id) }
-        catch { NSLog("refresh failed: \(error)") }
+    // ──────────────────────────────────────────────────────────────
+    //  Internal utilities
+    // ──────────────────────────────────────────────────────────────
+    private func runWithBusyAndErrors(
+        _ work: @escaping () async throws -> Void
+    ) async {
+        self.isBusy = true
+        defer { self.isBusy = false }
+
+        do {
+            try await work()
+            self.errorMessage = nil                 // clear any prior error
+        } catch {
+            self.errorMessage = "That’s taking a while – it'll be in your library soon :)"
+        }
     }
 
-    /// Fires interpretation if it hasn’t been run yet.
-    func interpret() async {
-        guard dream.analysis == nil else { return }
-        isBusy = true
-        defer { isBusy = false }
-        do {
-            try await store.requestAnalysis(for: dream.id)
-            try await Task.sleep(for: .seconds(2))
-            await refresh()
-        } catch { NSLog("interpret failed: \(error)") }
+    private func generateSummaryWithTimeout() async throws {
+        try await withThrowingTaskGroup(of: Void.self) { [self] group in
+            // real network call
+            group.addTask {
+                _ = try await self.store.generateSummary(for: self.dream.id)
+            }
+            // watchdog
+            group.addTask {
+                try await Task.sleep(for: self.timeout)
+                throw CancellationError()
+            }
+            try await group.next()        // whichever finishes first
+            group.cancelAll()             // cancel the loser
+        }
     }
 }
