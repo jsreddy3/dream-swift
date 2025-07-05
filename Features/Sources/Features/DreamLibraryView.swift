@@ -55,7 +55,6 @@ struct DreamLibraryView: View {
 
     @ViewBuilder
     private func row(for dream: Dream) -> some View {
-        let _ = print("📱 DreamLibraryView.row: Rendering dream \(dream.id) with title '\(dream.title)'")
         VStack(alignment: .leading, spacing: 4) {
             Text(dream.title.isEmpty ? "Untitled" : dream.title)
                 .font(.custom("Avenir-Heavy", size: 18))
