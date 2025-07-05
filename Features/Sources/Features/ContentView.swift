@@ -1,6 +1,7 @@
 import SwiftUI
 import Infrastructure
 import DomainLogic
+import CoreModels
 
 
 // MARK: – local types
