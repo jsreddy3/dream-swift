@@ -158,6 +158,10 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         
         do {
             let all_dreams = try decoder.decode([Dream].self, from: data)
+            print("📱 RemoteDreamStore.allDreams: Decoded \(all_dreams.count) dreams")
+            for dream in all_dreams {
+                print("  - Dream \(dream.id): title='\(dream.title)', summary=\(dream.summary != nil ? "present" : "nil")")
+            }
             return all_dreams
         } catch {
             print("RemoteDreamStore: Decoding error: \(error)")
@@ -188,7 +192,9 @@ public actor RemoteDreamStore: DreamStore, Sendable {
             path: "dreams/\(id)",
             method: "GET"
         )
-        return try await decode(Dream.self, from: req)
+        let dream = try await decode(Dream.self, from: req)
+        print("📱 RemoteDreamStore.getDream(\(id)): title='\(dream.title)', summary=\(dream.summary != nil ? "present" : "nil")")
+        return dream
     }
 
     // POST /dreams/{id}/analysis  (non-blocking fire-and-forget)
@@ -201,13 +207,22 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     }
     
     public func generateSummary(for id: UUID) async throws -> String {
+        print("📱 RemoteDreamStore.generateSummary: Starting for dream \(id)")
         let req = try await makeRequest(
             path: "dreams/\(id)/generate-summary",
             method: "POST"
         )
         
-        struct Envelope: Decodable { let summary: String }
+        struct Envelope: Decodable { 
+            let title: String
+            let summary: String 
+        }
         let result = try await decode(Envelope.self, from: req)
+        print("📱 RemoteDreamStore.generateSummary: Received title='\(result.title)', summary length=\(result.summary.count)")
+        
+        // Since this is called by DreamStore protocol which expects just summary,
+        // we need to update the title separately
+        // This is a workaround - ideally the protocol should return both
         return result.summary
     }
     

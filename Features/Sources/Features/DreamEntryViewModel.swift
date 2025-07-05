@@ -21,16 +21,27 @@ final class DreamEntryViewModel: ObservableObject {
     /// Ensures we have a summary. If the server can’t produce one,
     /// fall back to transcript or “”.
     private func ensureSummary() async {
-        guard dream.summary == nil else { return }
+        print("📱 DreamEntryViewModel.ensureSummary: Starting for dream \(dream.id)")
+        print("  - Current title: '\(dream.title)'")
+        print("  - Has summary: \(dream.summary != nil)")
+        
+        guard dream.summary == nil else { 
+            print("📱 DreamEntryViewModel.ensureSummary: Summary already exists, skipping")
+            return 
+        }
 
         isBusy = true
         defer { isBusy = false }
 
         // try remote first; returns "" if store is offline-only
+        print("📱 DreamEntryViewModel.ensureSummary: Calling generateSummary")
         let remoteSummary = try? await store.generateSummary(for: dream.id)
+        print("📱 DreamEntryViewModel.ensureSummary: generateSummary returned, summary length: \(remoteSummary?.count ?? 0)")
 
         // refresh local copy (may now hold remote result)
+        print("📱 DreamEntryViewModel.ensureSummary: Refreshing dream data")
         await refresh()
+        print("📱 DreamEntryViewModel.ensureSummary: After refresh - title: '\(dream.title)', has summary: \(dream.summary != nil)")
 
         // backend returned nil/empty? patch in a local fallback
         if dream.summary?.isEmpty ?? true {
@@ -45,8 +56,14 @@ final class DreamEntryViewModel: ObservableObject {
 
     /// Simple cache/remote refresh used by callers.
     func refresh() async {
-        do   { dream = try await store.getDream(dream.id) }
-        catch { NSLog("refresh failed: \(error)") }
+        print("📱 DreamEntryViewModel.refresh: Fetching dream \(dream.id)")
+        do   { 
+            dream = try await store.getDream(dream.id) 
+            print("📱 DreamEntryViewModel.refresh: Updated dream - title: '\(dream.title)', has summary: \(dream.summary != nil)")
+        }
+        catch { 
+            NSLog("refresh failed: \(error)") 
+        }
     }
 
     /// Fires interpretation if it hasn’t been run yet.
