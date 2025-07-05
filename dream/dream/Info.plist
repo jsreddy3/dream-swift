@@ -68,9 +68,25 @@
 				<key>NSIncludesSubdomains</key>
 				<true/>
 			</dict>
+            <key>172.20.10.5</key>
+            <dict>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+                <key>NSIncludesSubdomains</key>
+                <true/>
+            </dict>
+            <key>192.168.11.53</key>
+            <dict>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+                <key>NSIncludesSubdomains</key>
+                <true/>
+            </dict>
 		</dict>
 	</dict>
 	<key>UIFileSharingEnabled</key>
 	<false/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>DreamRecorder needs access to your microphone so it can capture your dream audio.</string>
 </dict>
 </plist>

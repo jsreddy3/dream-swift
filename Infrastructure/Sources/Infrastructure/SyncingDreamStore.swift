@@ -2,8 +2,7 @@
 //  SyncingDreamStore.swift
 //  Infrastructure
 //
-//  Fixed version – avoids actor-init isolation error
-//                – handles let transcript field immutably
+//  Unified audio/text implementation
 //
 
 import Foundation
@@ -13,24 +12,24 @@ import CoreModels
 
 public actor SyncingDreamStore: DreamStore, Sendable {
 
-    // MARK: Dependencies
+    // MARK: – Dependencies
     private let local: FileDreamStore
     private let remote: RemoteDreamStore
 
-    // MARK: Durable queue
+    // MARK: – Durable queue
     internal var queue: [PendingOp]
     private let queueURL: URL
 
-    // MARK: Reachability
+    // MARK: – Reachability
     private let monitor = NWPathMonitor()
     private var isOnline = false
 
-    // MARK: Live uploads passthrough
+    // MARK: – Live uploads passthrough
     private let uploadsStream: AsyncStream<UploadResult>
     private let uploadsCont: AsyncStream<UploadResult>.Continuation
     public var uploads: AsyncStream<UploadResult> { uploadsStream }
 
-    // MARK: Init
+    // MARK: – Init
     public init(local: FileDreamStore, remote: RemoteDreamStore) {
         self.local  = local
         self.remote = remote
@@ -39,18 +38,15 @@ public actor SyncingDreamStore: DreamStore, Sendable {
                                            in: .userDomainMask)[0]
         self.queueURL = lib.appendingPathComponent("DreamsSyncQueue.json")
 
-        // -------- 1. load queue before actor isolation matters --------
+        // 1. Load the pending queue from disk before actor isolation
         self.queue = Self.initialQueue(from: queueURL)
 
-        // -------- 2. live-upload relay --------
+        // 2. Live-upload relay
         var c: AsyncStream<UploadResult>.Continuation!
-        let stream = AsyncStream<UploadResult> { cont in
-            c = cont
-        }
+        let stream = AsyncStream<UploadResult> { cont in c = cont }
         uploadsStream = stream
         uploadsCont   = c
 
-        // launch the forwarding task and store it in an immutable binding
         let relayTask = Task.detached { [weak self] in
             guard let self else { return }
             for await result in await self.remote.uploads {
@@ -60,54 +56,57 @@ public actor SyncingDreamStore: DreamStore, Sendable {
                 self.uploadsCont.yield(result)
             }
         }
-
-        // now that the task exists, hook it to the stream’s lifetime
         c.onTermination = { _ in relayTask.cancel() }
 
-        // -------- 3. reachability watcher --------
+        // 3. Reachability watcher
         monitor.pathUpdateHandler = { [weak self] path in
             Task { await self?.networkChanged(path.status == .satisfied) }
         }
         monitor.start(queue: .global(qos: .utility))
     }
 
-    // MARK: DreamStore writes (write-through + queue)
+    // MARK: – DreamStore writes (write-through + queue)
+
     public func insertNew(_ dream: Dream) async throws {
         try await local.insertNew(dream)
         enqueue(.create(dream))
     }
-    public func appendSegment(dreamID: UUID, segment: AudioSegment) async throws {
+
+    public func appendSegment(dreamID: UUID, segment: Segment) async throws {
         try await local.appendSegment(dreamID: dreamID, segment: segment)
         enqueue(.append(dreamID: dreamID, segment: segment))
     }
+
     public func removeSegment(dreamID: UUID, segmentID: UUID) async throws {
-        do {
-            try await local.removeSegment(dreamID: dreamID, segmentID: segmentID)
-        } catch {
+        do { try await local.removeSegment(dreamID: dreamID, segmentID: segmentID) }
+        catch {
             NSLog("mergeTranscript: remove failed with \(error)")
             assertionFailure("removeSegment failed: \(error)")
         }
         enqueue(.remove(dreamID: dreamID, segmentID: segmentID))
     }
+
     public func markCompleted(_ id: UUID) async throws {
         try await local.markCompleted(id)
         enqueue(.finish(id))
     }
+
     public func updateTitle(dreamID: UUID, title: String) async throws {
         try await local.updateTitle(dreamID: dreamID, title: title)
         enqueue(.rename(dreamID: dreamID, title: title))
     }
-    // MARK: DreamStore reads – cached first, reconcile in background
-    public func segments(dreamID id: UUID) async throws -> [AudioSegment] {
+
+    // MARK: – DreamStore reads (cache first, reconcile in background)
+
+    public func segments(dreamID id: UUID) async throws -> [Segment] {
         let cached = try await local.segments(dreamID: id)          // fast path
 
-        if isOnline {                                               // don’t wake radios if down
+        if isOnline {
             Task.detached { [weak self] in
                 guard let self else { return }
                 if let remote = try? await self.remote.segments(dreamID: id),
-                   remote.count >= cached.count,      // ← this guard is critical
-                   remote != cached
-                {
+                   remote.count >= cached.count,
+                   remote != cached {
                     try? await self.local.replaceSegments(id, with: remote)
                 }
             }
@@ -118,28 +117,18 @@ public actor SyncingDreamStore: DreamStore, Sendable {
     public func allDreams() async throws -> [Dream] {
         let cached = try await local.allDreams()
 
-        if isOnline {
-            // Fetch from remote synchronously to ensure UI gets latest data
-            if let cloud = try? await self.remote.allDreams() {
-                print("SyncingDreamStore: Got \(cloud.count) dreams from remote")
-                
-                // Update local cache with any changes
-                for dream in cloud {
-                    print("  - Dream \(dream.id): state=\(dream.state.rawValue), videoS3Key=\(dream.videoS3Key ?? "nil")")
-                    try? await self.local.upsert(dream)
-                }
-                
-                // Return the fresh data from remote
-                return cloud
+        if isOnline,
+           let cloud = try? await remote.allDreams() {
+            for dream in cloud {
+                try? await local.upsert(dream)
             }
+            return cloud
         }
-        
-        // Fall back to cached if offline or fetch fails
         return cached
     }
 
     public func getTranscript(dreamID id: UUID) async throws -> String? {
-        let cached = try await local.getTranscript(dreamID: id)     // may be nil / empty
+        let cached = try await local.getTranscript(dreamID: id)
 
         if isOnline {
             Task.detached { [weak self] in
@@ -153,46 +142,85 @@ public actor SyncingDreamStore: DreamStore, Sendable {
         return cached
     }
     
-    public func getVideoURL(dreamID: UUID) async throws -> URL? {
-        // Video URLs are only available from remote
-        if isOnline {
-            return try await remote.getVideoURL(dreamID: dreamID)
+    public func getDream(_ id: UUID) async throws -> Dream {
+        // 1️⃣ try fast local hit
+        if let cached = try? await local.getDream(id) {
+            // 2️⃣ kick off remote refresh in background (if online)
+            if isOnline {
+                Task.detached { [weak self] in
+                    guard let self else { return }
+                    if let fresh = try? await self.remote.getDream(id) {
+                        try? await self.local.upsert(fresh)
+                    }
+                }
+            }
+            return cached
         }
-        return nil
+
+        // 3️⃣ no cache → fetch remote (may still throw offline)
+        let fresh = try await remote.getDream(id)
+        try? await local.upsert(fresh)
+        return fresh
     }
-    
+
+    public func requestAnalysis(for id: UUID) async throws {
+        // delegate straight to remote if we’re online,
+        // otherwise enqueue for later just like other ops.
+        if isOnline {
+            try await remote.requestAnalysis(for: id)
+        } else {
+            enqueue(.analyze(id))   // ← you may add this PendingOp later
+        }
+    }
+
+    public func getVideoURL(dreamID: UUID) async throws -> URL? {
+        isOnline ? try await remote.getVideoURL(dreamID: dreamID) : nil
+    }
+
+    // MARK: – Queue draining
+
     public func drain() async {
         guard isOnline else { return }
-
         while isOnline, !queue.isEmpty {
-            let op = queue.removeFirst()      // remove from RAM
+            let op = queue.removeFirst()
             do {
                 try await perform(op)
-                truncateLogIfEmpty()          // ← compact only when queue is empty
+                truncateLogIfEmpty()
             } catch {
-                queue.insert(op, at: 0)       // push back
-                break                         // bail; retry later
+                queue.insert(op, at: 0)
+                break
             }
         }
     }
+    
+    public func generateSummary(for id: UUID) async throws -> String {
+        if isOnline {
+            let summary = try await remote.generateSummary(for: id)
+            // update local copy so offline cache is in sync
+            try? await local.updateDream(id) { $0.summary = summary }
+            return summary
+        }
+        
+        // Offline – produce fallback exactly like FileDreamStore
+        return try await local.generateSummary(for: id)
+    }
 
+    // MARK: – Queue helpers
 
-    // MARK: Queue helpers
     private func enqueue(_ op: PendingOp) {
         queue.append(op)
-        appendToLog(op)                       // ← replaces persistQueue()
+        appendToLog(op)
         if isOnline { Task { await drain() } }
     }
-    
+
     private func appendToLog(_ op: PendingOp) {
         guard let line = try? JSONEncoder().encode(op) else { return }
         var handle: FileHandle? = try? FileHandle(forUpdating: queueURL)
 
-        if handle == nil {            // first write ever
+        if handle == nil {
             FileManager.default.createFile(atPath: queueURL.path, contents: nil)
             handle = try? FileHandle(forUpdating: queueURL)
         }
-
         guard let h = handle else { return }
         try? h.seekToEnd()
         try? h.write(contentsOf: line + Data([0x0A]))
@@ -201,29 +229,26 @@ public actor SyncingDreamStore: DreamStore, Sendable {
 
     private func truncateLogIfEmpty() {
         if queue.isEmpty {
-            try? Data().write(to: queueURL, options: .atomic)   // zero-length file
+            try? Data().write(to: queueURL, options: .atomic)
         }
     }
-    
+
     private static func initialQueue(from url: URL) -> [PendingOp] {
         guard let data = try? Data(contentsOf: url) else { return [] }
-
-        var ops: [PendingOp] = []
-        for slice in data.split(separator: 0x0A) {             // 0x0A == '\n'
-            if let op = try? JSONDecoder().decode(PendingOp.self, from: slice) {
-                ops.append(op)
-            }
+        return data.split(separator: 0x0A).compactMap {
+            try? JSONDecoder().decode(PendingOp.self, from: $0)
         }
-        return ops
     }
 
-    // MARK: Draining
+    // MARK: – Reachability callback
+
     internal func networkChanged(_ now: Bool) async {
         isOnline = now
         if isOnline { await drain() }
     }
 
-    
+    // MARK: – Remote operation dispatcher
+
     private func perform(_ op: PendingOp) async throws {
         switch op {
         case .create(let d):             try await remote.insertNew(d)
@@ -231,32 +256,41 @@ public actor SyncingDreamStore: DreamStore, Sendable {
         case .remove(let id, let sid):   try await remote.removeSegment(dreamID: id, segmentID: sid)
         case .rename(let id, let t):     try await remote.updateTitle(dreamID: id, title: t)
         case .finish(let id):            try await remote.markCompleted(id)
+        case .analyze(let id):           try await remote.requestAnalysis(id)
         }
     }
 
-    // MARK: Transcript merge (immutable AudioSegment)
+    // MARK: – Transcript merge (immutable Segment copy)
+
     private func mergeTranscript(_ r: UploadResult) async throws {
         let list = try await local.segments(dreamID: r.dreamID)
         guard let idx = list.firstIndex(where: { $0.id == r.segmentID }) else { return }
 
         let old = list[idx]
-        let updated = AudioSegment(id: old.id,
-                                   filename: old.filename,
-                                   duration: old.duration,
-                                   order: old.order,
-                                   transcript: r.transcript)
 
-        // Rewrite: drop old, add new (preserves order property)
+        // Text clips never receive late transcripts.
+        guard old.modality == SegmentModality.audio else { return }
+
+        let updated = Segment(id: old.id,
+                              modality: .audio,
+                              order: old.order,
+                              filename: old.filename,
+                              duration: old.duration,
+                              text: old.text,
+                              transcript: r.transcript)
+
         try await local.removeSegment(dreamID: r.dreamID, segmentID: r.segmentID)
         try await local.upsertSegment(updated, dreamID: r.dreamID)
     }
 }
 
-// MARK: Codable op descriptions
+// MARK: – Codable op descriptions (persisted queue)
+
 internal enum PendingOp: Codable {
     case create(Dream)
-    case append(dreamID: UUID, segment: AudioSegment)
+    case append(dreamID: UUID, segment: Segment)
     case remove(dreamID: UUID, segmentID: UUID)
     case rename(dreamID: UUID, title: String)
     case finish(UUID)
+    case analyze(UUID)
 }

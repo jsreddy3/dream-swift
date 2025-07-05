@@ -8,7 +8,7 @@ import Observation
 enum CaptureState: Equatable {
     case idle                              // nothing started yet
     case recording                         // mic rolling
-    case paused                            // at least one segment recorded, mic stopped
+    case clipped                            // at least one segment recorded, mic stopped
     case saving                            // user tapped Done and we are persisting
     case saved                             // dream completed successfully
     case failed(String)                    // bubble up a user-readable error
@@ -22,28 +22,33 @@ public final class CaptureViewModel {
     private let start: StartCaptureDream
     private let stop: StopCaptureDream
     private let done: CompleteDream
+    private let saveText: SaveTextSegment
     private let cont: StartAdditionalSegment
-    private let renamer: RenameDream
-    private let querySegments: (UUID) async throws -> [AudioSegment]
+    private let querySegments: (UUID) async throws -> [Segment]
     private let deleteSegment: (UUID, UUID) async throws -> Void
     
 
     var state: CaptureState = .idle          // drives the entire UI
-    var segments: [AudioSegment] = []              // drives the on-screen list
-    var title: String = ""
+    var segments: [Segment] = []              // drives the on-screen list
 
     private var dreamID: UUID?
     private var handle: RecordingHandle?
     private var order = 0
     private var uploadsTask: Task<Void, Never>?   // stored property
-
+    
+    @ObservationIgnored
+    var isTyping = false
+    
+    @ObservationIgnored
+    private(set) var lastSavedID: UUID?
+    
     public init(recorder: AudioRecorderActor, store: SyncingDreamStore) {
         self.store = store
         start = StartCaptureDream(recorder: recorder, store: store)
         stop  = StopCaptureDream(recorder: recorder, store: store)
         done  = CompleteDream(store: store)
         cont  = StartAdditionalSegment(recorder: recorder, store: store)
-        renamer = RenameDream(store: store)
+        saveText = SaveTextSegment(store: store)
         
         querySegments = { try await store.segments(dreamID: $0) }
         deleteSegment = { try await store.removeSegment(dreamID: $0, segmentID: $1) }
@@ -53,7 +58,7 @@ public final class CaptureViewModel {
 
     public func startOrStop() {
         switch state {
-        case .idle, .paused, .saved:
+        case .idle, .clipped, .saved:
             Task { await beginRecording() }
         case .recording:
             Task { await endRecording() }
@@ -61,13 +66,55 @@ public final class CaptureViewModel {
             break
         }
     }
+    
+    public func startOrStopText(_ text: String) {
+        let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { return }
+
+        switch state {
+        case .idle, .clipped where !isTyping:
+            isTyping = true
+            state = .recording                       // greys out picker instantly
+        case .recording:
+            Task { await finishText(cleaned) }       // ✓ tapped
+        default:
+            break
+        }
+    }
+
+    private func finishText(_ text: String) async {
+        let saver = saveText                      // ← ① local copy on MainActor
+
+        do {
+            if dreamID == nil {                   // may suspend
+                let result = try await start()
+                dreamID = result.dreamID
+            }
+
+            let newSeg = try await saver(         // ← ② use the copy, not self.saveText
+                dreamID: dreamID!,
+                text: text,
+                order: order
+            )
+
+            order += 1
+            segments.append(newSeg)
+            try await refreshSegments()
+
+            isTyping = false
+            state = .clipped
+        } catch {
+            state = .failed("Text save error: \(error.localizedDescription)")
+        }
+    }
+
 
     func finish() {
-        guard case .paused = state else { return }
+        guard case .clipped = state else { return }
         Task { await completeDream() }
     }
     
-    func remove(_ segment: AudioSegment) {
+    func remove(_ segment: Segment) {
         guard let id = dreamID else { return }
         Task {
             do {
@@ -90,11 +137,6 @@ public final class CaptureViewModel {
                 // If the server kindly gave us speech-to-text, integrate it.
                 if !result.transcript.isEmpty {
                     let cleaned = result.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !cleaned.isEmpty {
-                        // naïve approach: tack the text onto the draft title
-                        // You might instead store per-segment subtitles.
-                        title = (title + " " + cleaned).trimmingCharacters(in: .whitespaces)
-                    }
                 }
 
                 // After any upload completes we fetch the authoritative segment list.
@@ -118,7 +160,7 @@ public final class CaptureViewModel {
             state = .failed("Mic error: \(error.localizedDescription)")
         }
     }
-
+        
     private func endRecording() async {
         guard let id = dreamID, let h = handle else { return }
         do {
@@ -126,7 +168,7 @@ public final class CaptureViewModel {
             order += 1
             segments.append(newSeg)              // ← row appears immediately
             try await refreshSegments()           // still reconciles if online
-            state = .paused
+            state = .clipped
         } catch {
             state = .failed("Stop error: \(error.localizedDescription)")
         }
@@ -136,20 +178,10 @@ public final class CaptureViewModel {
         guard let id = dreamID else { return }
         state = .saving
         do {
-            let safeTitle = title.trimmingCharacters(in: .whitespaces)
-            if !safeTitle.isEmpty {
-                try await renamer(dreamID: id, newTitle: safeTitle)   
-            }
-            
             try await done(dreamID: id)
+            lastSavedID = id
             reset()
-            state = .saved
-
-            // banner timeout
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(1))
-                if case .saved = state { state = .idle }
-            }
+            state = .idle
         } catch {
             state = .failed("Save error: \(error.localizedDescription)")
         }
@@ -173,7 +205,6 @@ public final class CaptureViewModel {
         handle  = nil
         order   = 0
         segments.removeAll()
-        title = ""
     }
     
     deinit {

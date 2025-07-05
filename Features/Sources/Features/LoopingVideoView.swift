@@ -4,8 +4,8 @@ import AVFoundation
 
 // Reference-type model that lives once per screen
 final class LoopingPlayerModel: ObservableObject {
-    let player: AVQueuePlayer
-    private let looper: AVPlayerLooper
+    let player: AVQueuePlayer?  // ← Made optional
+    private let looper: AVPlayerLooper?  // ← Made optional
     
     init(resource name: String, ext: String = "mp4", muted: Bool = true) {
         // Configure audio session
@@ -17,7 +17,10 @@ final class LoopingPlayerModel: ObservableObject {
         }
         
         guard let url = Bundle.main.url(forResource: name, withExtension: ext) else {
-            fatalError("Video \(name).\(ext) not found in bundle")
+            print("Video \(name).\(ext) not found - preview mode?")  // ← Changed from fatalError
+            self.player = nil  // ← Set nil instead of crashing
+            self.looper = nil
+            return
         }
         
         print("Found video at: \(url)")
@@ -42,29 +45,35 @@ struct LoopingVideoView: View {
     }
     
     var body: some View {
-        VideoPlayer(player: model.player)
-            .disabled(true)
-            .aspectRatio(contentMode: .fill)
-            .clipped()
-            .onAppear { 
-                model.player.play()
-                print("Started playing video")
+        Group {  // ← Added Group
+            if let player = model.player {  // ← Added nil check
+                VideoPlayer(player: player)
+                    .disabled(true)
+                    .aspectRatio(contentMode: .fill)
+                    .clipped()
+                    .onAppear {
+                        player.play()  // ← Now using unwrapped player
+                        print("Started playing video")
+                    }
+                    .onDisappear {
+                        player.pause()  // ← Now using unwrapped player
+                        print("Paused video")
+                    }
+                    .onChange(of: scenePhase) { _, newPhase in
+                        switch newPhase {
+                        case .active:
+                            player.play()  // ← Now using unwrapped player
+                            print("Resumed video playback")
+                        case .background:
+                            player.pause()  // ← Now using unwrapped player
+                            print("Paused video for background")
+                        default:
+                            break
+                        }
+                    }
+            } else {
+                Color.black  // ← Invisible placeholder for preview
             }
-            .onDisappear { 
-                model.player.pause()
-                print("Paused video")
-            }
-            .onChange(of: scenePhase) { _, newPhase in
-                switch newPhase {
-                case .active:
-                    model.player.play()
-                    print("Resumed video playback")
-                case .background:
-                    model.player.pause()
-                    print("Paused video for background")
-                default:
-                    break
-                }
-            }
+        }
     }
 }

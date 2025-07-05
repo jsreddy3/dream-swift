@@ -65,18 +65,53 @@ public actor RemoteDreamStore: DreamStore, Sendable {
 
     public func appendSegment(
         dreamID: UUID,
-        segment: AudioSegment
+        segment: Segment
     ) async throws {
 
-        // optimistic update happens in the caller’s layer;
-        // we just schedule the slow part and return.
-        let path = try localPath(for: segment.filename)
-        ensureSSE(for: dreamID)
+        ensureSSE(for: dreamID)                 // one live SSE pipe per dream
 
-        Task.detached(priority: .utility) { [weak self] in
-            await self?._uploadAndRegister(dreamID, segment, path)
-        }
+        switch segment.modality {
+            // ---------- AUDIO: upload file, then register ----------
+            case .audio:
+                guard
+                    let name = segment.filename,
+                    let path = try? localPath(for: name)
+                else { throw RemoteError.io(NSError(domain: "LocalFile",
+                                                    code: 0,
+                                                    userInfo: [NSLocalizedDescriptionKey:
+                                                        "Missing filename for audio segment"])) }
+
+                Task.detached(priority: .utility) { [weak self] in
+                    await self?._uploadAudioAndRegister(dreamID, segment, path)
+                }
+
+            // ---------- TEXT: one-shot register, no file ----------
+            case .text:
+                struct Payload: Encodable {
+                    let segment_id: UUID
+                    let order: Int
+                    let modality = "text"
+                    let text: String
+                }
+                let body = Payload(segment_id: segment.id,
+                                   order: segment.order,
+                                   text: segment.text ?? "")
+                let req = try await makeRequest(
+                    path: "dreams/\(dreamID)/segments",
+                    method: "POST",
+                    json: body
+                )
+
+                // server echoes transcript immediately
+                let transcript = try await performReturningTranscript(req)
+                continuation.yield(
+                    .init(dreamID: dreamID,
+                          segmentID: segment.id,
+                          transcript: transcript)
+                )
+            }
     }
+
 
     public func removeSegment(
         dreamID: UUID,
@@ -89,12 +124,12 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         try await perform(req)
     }
 
-    public func segments(dreamID: UUID) async throws -> [AudioSegment] {
+    public func segments(dreamID: UUID) async throws -> [Segment] {
         let req = try await makeRequest(
             path: "dreams/\(dreamID)/segments",
             method: "GET"
         )
-        return try await decode([AudioSegment].self, from: req)
+        return try await decode([Segment].self, from: req)
     }
     
     public func getTranscript(dreamID: UUID) async throws -> String? {
@@ -120,27 +155,9 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         
         // Debug: print raw response
         let (data, _) = try await session.data(for: req)
-        if let jsonString = String(data: data, encoding: .utf8) {
-            print("RemoteDreamStore: Raw response from /dreams/:")
-            // Parse and pretty print to see structure
-            if let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] {
-                for (index, dream) in json.enumerated() {
-                    print("Dream \(index):")
-                    print("  id: \(dream["id"] ?? "nil")")
-                    print("  state: \(dream["state"] ?? "nil")")
-                    print("  video_url: \(dream["video_url"] ?? "nil")")
-                    print("  video_s3_key: \(dream["video_s3_key"] ?? "nil")")
-                    print("  has video_s3_key: \(dream.keys.contains("video_s3_key"))")
-                }
-            }
-        }
         
         do {
             let all_dreams = try decoder.decode([Dream].self, from: data)
-            print("RemoteDreamStore: Decoded \(all_dreams.count) dreams")
-            for dream in all_dreams {
-                print("  - Dream \(dream.id): state=\(dream.state.rawValue), videoS3Key=\(dream.videoS3Key ?? "nil")")
-            }
             return all_dreams
         } catch {
             print("RemoteDreamStore: Decoding error: \(error)")
@@ -163,6 +180,35 @@ public actor RemoteDreamStore: DreamStore, Sendable {
             json: Payload(title: title)
         )
         try await perform(req)
+    }
+    
+    // GET /dreams/{id}
+    public func getDream(_ id: UUID) async throws -> Dream {
+        let req = try await makeRequest(
+            path: "dreams/\(id)",
+            method: "GET"
+        )
+        return try await decode(Dream.self, from: req)
+    }
+
+    // POST /dreams/{id}/analysis  (non-blocking fire-and-forget)
+    public func requestAnalysis(_ id: UUID) async throws {
+        let req = try await makeRequest(
+            path: "dreams/\(id)/analysis-dog",
+            method: "POST"
+        )
+        try await perform(req)
+    }
+    
+    public func generateSummary(for id: UUID) async throws -> String {
+        let req = try await makeRequest(
+            path: "dreams/\(id)/generate-summary",
+            method: "POST"
+        )
+        
+        struct Envelope: Decodable { let summary: String }
+        let result = try await decode(Envelope.self, from: req)
+        return result.summary
     }
     
     // MARK - SSE
@@ -230,31 +276,39 @@ public actor RemoteDreamStore: DreamStore, Sendable {
             return nil
         }
     }
-
-    // MARK: – Helpers (small, focused)
     
-    private func _uploadAndRegister(
+    private func _uploadAudioAndRegister(
         _ dreamID: UUID,
-        _ segment: AudioSegment,
+        _ segment: Segment,
         _ path: URL
     ) async {
 
         do {
-            let signed = try await fetchUploadURL(dreamID, segment.filename)
+            let signed = try await fetchUploadURL(dreamID, segment.filename!)
             try await upload(local: path, to: signed.url)
+
+            struct RegisterPayload: Encodable {
+                let segment_id: UUID
+                let order: Int
+                let modality = "audio"
+                let filename: String
+                let duration: TimeInterval
+                let s3_key: String
+            }
 
             let payload = RegisterPayload(
                 segment_id: segment.id,
-                filename: segment.filename,
-                duration: segment.duration,
                 order: segment.order,
+                filename: segment.filename!,
+                duration: segment.duration ?? 0,
                 s3_key: signed.s3Key
             )
+            
             let req = try await makeRequest(
-                        path: "/dreams/\(dreamID)/segments",
-                        method: "POST",
-                        json: payload
-                    )
+                path: "dreams/\(dreamID)/segments",
+                method: "POST",
+                json: payload
+            )
             let transcript = try await performReturningTranscript(req)
 
             continuation.yield(
@@ -263,12 +317,12 @@ public actor RemoteDreamStore: DreamStore, Sendable {
                       transcript: transcript)
             )
         } catch {
-            // In a real app you’d store a retry ticket or emit a Notification
-            // so the UI can surface “Upload failed – tap to retry”.
-            // For now we just log.
             NSLog("Segment upload failed: \(error)")
         }
     }
+
+
+    // MARK: – Helpers (small, focused)
 
     private struct Presigned: Decodable { let upload_url: URL; let upload_key: String }
     private struct RegisterPayload: Encodable {
@@ -401,10 +455,6 @@ public actor RemoteDreamStore: DreamStore, Sendable {
             throw RemoteError.badStatus(code, body)
         }
 
-        // The server’s schema for AudioSegmentRead looks like:
-        // { "id": "...", "filename": "...", "duration": 10.0,
-        //   "order": 0, "transcript": "hello there" }
-        // We only need the last part, so decode into a tiny throw-away struct.
         struct Envelope: Decodable { let transcript: String? }
         let env = try decoder.decode(Envelope.self, from: data)
 

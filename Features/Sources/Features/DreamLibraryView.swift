@@ -1,22 +1,22 @@
+//  DreamLibraryView.swift
+//  DreamCatcher
+//
+//  Minimalistic dream library – taps to open DreamEntryView.
+//  No rename, no video playback, no clip disclosure.
+//
+
 import SwiftUI
-import AVKit
 import CoreModels
 import Infrastructure
 import DomainLogic
-import Foundation
 
-// MARK: - Library ----------------------------------------------------------
+// MARK: - View -----------------------------------------------------------
 
 struct DreamLibraryView: View {
-    @State private var vm: DreamLibraryViewModel       // keeps instance alive
-    @State private var open: UUID?               = nil
-    @State private var clips: [UUID: [AudioSegment]] = [:]
-    @State private var editing: Dream?           = nil
-    @State private var draft                     = ""
-    @State private var playing: Dream?           = nil       // video sheet binding
+    @StateObject private var vm: DreamLibraryViewModel
 
     init(viewModel: DreamLibraryViewModel) {
-        _vm = State(wrappedValue: viewModel)
+        _vm = StateObject(wrappedValue: viewModel)
     }
 
     var body: some View {
@@ -26,192 +26,79 @@ struct DreamLibraryView: View {
                     .font(.custom("Avenir-Medium", size: 18))
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(UIColor.systemBackground))
+                    .background(Color(.systemBackground))
             } else {
                 List(vm.dreams) { dream in
-                    DisclosureGroup(
-                        isExpanded: Binding(
-                            get: { open == dream.id && editing == nil },
-                            set: { expanded in
-                                open = expanded ? dream.id : nil
-                                if expanded && clips[dream.id] == nil {
-                                    Task { clips[dream.id] = try? await vm.segments(for: dream) }
-                                }
-                            })
-                    ) {
-                        if let segs = clips[dream.id] {
-                            ForEach(segs, id: \.id) { seg in
-                                Text("Clip \(seg.order) – \(Int(seg.duration)) s")
-                            }
-                        } else {
-                            ProgressView()
-                        }
-                    } label: {
-                        rowLabel(for: dream)
-                    }
-                    .swipeActions {
-                        Button("Rename") {
-                            draft   = dream.title
-                            editing = dream
-                        }
+                    NavigationLink(value: dream) {
+                        row(for: dream)
                     }
                 }
+                .listStyle(.plain)
             }
         }
-        .task { @MainActor in await vm.refresh() }           // no Sendable warning
         .navigationTitle("Dream Library")
         .navigationBarTitleDisplayMode(.large)
+        .navigationDestination(for: Dream.self) { dream in
+            DreamEntryView(dream: dream, store: vm.store)
+        }
+        .task { await vm.refresh() }
         .onAppear(perform: configureNavFont)
-        .sheet(item: $playing) { dream in
-            VideoLoadingView(dream: dream,
-                             store: vm.store,
-                             isPresented: $playing)
-        }
-        .sheet(item: $editing) { dream in
-            renameSheet(for: dream)
-        }
     }
 
-    // MARK: row label ------------------------------------------------------
+    // MARK: Row -----------------------------------------------------------
 
     @ViewBuilder
-    private func rowLabel(for dream: Dream) -> some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(dream.title.isEmpty ? "Untitled" : dream.title)
-                    .fontWeight(.semibold)
+    private func row(for dream: Dream) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(dream.title.isEmpty ? "Untitled" : dream.title)
+                .font(.custom("Avenir-Heavy", size: 18))
 
-                if let t = dream.transcript, !t.isEmpty {
-                    Text(t)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
-
-            Spacer(minLength: 12)
-
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(dream.state == .draft
-                        ? "Draft"
-                        : dream.state == .video_generated ? "Video Ready" : "Done")
+            if let summary = dream.summary, !summary.isEmpty {
+                Text(summary)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .onAppear {
-                        print("Dream \(dream.id): state=\(dream.state.rawValue), videoS3Key=\(dream.videoS3Key ?? "nil")")
-                    }
-
-                if dream.state == .video_generated,
-                   dream.videoS3Key != nil {
-                    Button { playing = dream } label: {
-                        Image(systemName: "play.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.accentColor)
-                    }
-                    .buttonStyle(.plain)
-                } else if dream.state == .video_generated {
-                    // Debug: video_generated but no S3 key
-                    Text("No S3 Key")
-                        .font(.caption2)
-                        .foregroundColor(.red)
-                }
+                    .lineLimit(2)
+            } else if let transcript = dream.transcript, !transcript.isEmpty {
+                Text(transcript)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
             }
         }
+        .padding(.vertical, 4)
     }
 
-    // MARK: rename sheet ---------------------------------------------------
-
-    @ViewBuilder
-    private func renameSheet(for dream: Dream) -> some View {
-        NavigationStack {
-            Form {
-                TextField("Title", text: $draft)
-                Button("Save") {
-                    Task { await vm.rename(dream, to: draft) }
-                    editing = nil
-                }
-            }
-            .navigationTitle("Rename Dream")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { editing = nil }
-                }
-            }
-        }
-    }
-
-    // MARK: nav bar font ---------------------------------------------------
+    // MARK: Nav Bar Font --------------------------------------------------
 
     private func configureNavFont() {
         let appearance = UINavigationBarAppearance()
         appearance.largeTitleTextAttributes = [
-            .font: UIFont(name: "Avenir-Heavy", size: 34)!
+            .font: UIFont(name: "Avenir-Heavy", size: 34) as Any
         ]
         appearance.titleTextAttributes = [
-            .font: UIFont(name: "Avenir-Medium", size: 18)!
+            .font: UIFont(name: "Avenir-Medium", size: 18) as Any
         ]
         UINavigationBar.appearance().standardAppearance  = appearance
         UINavigationBar.appearance().scrollEdgeAppearance = appearance
     }
 }
 
-// MARK: - Video loader -----------------------------------------------------
+// MARK: - Dream ⇢ Hashable ----------------------------------------------
 
-struct VideoLoadingView: View {
-    let dream: Dream
-    let store: SyncingDreamStore
-    @Binding var isPresented: Dream?
-
-    @State private var videoURL: URL?
-    @State private var isLoading  = true
-    @State private var errorMsg:  String?
-
-    var body: some View {
-        Group {
-            if isLoading {
-                VStack {
-                    ProgressView("Loading video…").padding()
-                    Button("Cancel") { isPresented = nil }
-                }
-            } else if let url = videoURL {
-                VideoPlayerView(url: url, isPresented: Binding(
-                    get: { isPresented != nil },
-                    set: { if !$0 { isPresented = nil } }
-                ))
-            } else {
-                VStack {
-                    Text("Failed to load video")
-                        .font(.headline)
-                    if let e = errorMsg {
-                        Text(e).font(.caption).foregroundColor(.secondary)
-                    }
-                    Button("Close") { isPresented = nil }.padding()
-                }
-            }
-        }
-        .task {
-            do {
-                if let url = try await store.getVideoURL(dreamID: dream.id) {
-                    videoURL   = url
-                } else {
-                    errorMsg   = "No video URL available"
-                }
-            } catch {
-                errorMsg   = error.localizedDescription
-            }
-            isLoading = false
-        }
-    }
+extension Dream: Hashable {
+    public func hash(into hasher: inout Hasher) { hasher.combine(id) }
+    public static func == (lhs: Dream, rhs: Dream) -> Bool { lhs.id == rhs.id }
 }
 
-// MARK: - Preview ----------------------------------------------------------
+// MARK: - Preview --------------------------------------------------------
 
+#if DEBUG
 #Preview {
     let local  = FileDreamStore()
-    let auth = AuthStore()
+    let auth   = AuthStore()
     let remote = RemoteDreamStore(baseURL: URL(string: "http://localhost:8000")!, auth: auth)
     let sync   = SyncingDreamStore(local: local, remote: remote)
-    NavigationStack {
-        DreamLibraryView(viewModel: DreamLibraryViewModel(store: sync))
-    }
+    let vm     = DreamLibraryViewModel(store: sync)
+    return NavigationStack { DreamLibraryView(viewModel: vm) }
 }
+#endif

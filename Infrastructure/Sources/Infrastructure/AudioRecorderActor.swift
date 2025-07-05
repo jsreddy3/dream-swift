@@ -6,6 +6,10 @@
 //
 #if os(iOS) || os(visionOS)        // 📱 compile only for iOS-family builds
 
+private var isPreview: Bool {
+    ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
+}
+
 import Foundation
 import AVFoundation
 import DomainLogic          // gives us AudioRecorder, RecordingHandle, CompletedSegment
@@ -39,6 +43,11 @@ public actor AudioRecorderActor: AudioRecorder, Sendable {
 
     public func begin() async throws -> RecordingHandle {
         // 1. Request or validate permission up front.
+        
+        if isPreview {
+                return RecordingHandle(segmentID: UUID())
+            }
+        
         #if os(iOS)
         let granted: Bool
         if #available(iOS 17.0, *) {
@@ -91,6 +100,12 @@ public actor AudioRecorderActor: AudioRecorder, Sendable {
     }
 
     public func stop(_ handle: RecordingHandle) async throws -> CompletedSegment {
+        
+        if isPreview {
+                return CompletedSegment(segmentID: handle.segmentID,
+                                        filename: "\(UUID()).m4a",
+                                        duration: 0)
+            }
         guard let r = recorder, let url = currentURL else {
             throw RecorderError.noActiveSession
         }

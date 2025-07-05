@@ -2,17 +2,17 @@
 //  FileDreamStore.swift
 //  Infrastructure
 //
-//  Created by DreamFinder.
+//  Updated for unified `Segment` type (audio / text)
 //
 
 import Foundation
-import DomainLogic         // gives us Dream, AudioSegment, DreamState & DreamStore
+import DomainLogic         // Dream, Segment, DreamState & DreamStore
 import CoreModels
 
 /// Errors that can surface while persisting dreams to disk.
 public enum DreamStoreError: Error, LocalizedError, Sendable {
     case dreamNotFound(UUID)
-    case segmentNotFound(UUID)       // ← new
+    case segmentNotFound(UUID)
     case io(Error)
 
     public var errorDescription: String? {
@@ -28,16 +28,14 @@ public enum DreamStoreError: Error, LocalizedError, Sendable {
 extension FileDreamStore {
     /// Load a dream from disk so tests can assert on the persisted value.
     func debug_read(_ id: UUID) async throws -> Dream {
-        try await read(id)                // calls the actor’s private method
+        try await read(id)
     }
 }
 #endif
 
-
 /// JSON-backed implementation of DreamStore.
 /// Every dream is stored as <ID>.json in the ~/Library/Dreams directory.
 public actor FileDreamStore: DreamStore, Sendable {
-
     // MARK: – Init
 
     private let root: URL
@@ -61,13 +59,13 @@ public actor FileDreamStore: DreamStore, Sendable {
         decoder.dateDecodingStrategy = .iso8601
     }
 
-    // MARK: – DreamStore
+    // MARK: – DreamStore API
 
     public func insertNew(_ dream: Dream) async throws {
         try await write(dream)
     }
 
-    public func appendSegment(dreamID: UUID, segment: AudioSegment) async throws {
+    public func appendSegment(dreamID: UUID, segment: Segment) async throws {
         var dream = try await read(dreamID)
         dream.segments.append(segment)
         try await write(dream)
@@ -79,33 +77,32 @@ public actor FileDreamStore: DreamStore, Sendable {
         dream.state = .completed
         try await write(dream)
     }
-    
-    public func segments(dreamID: UUID) async throws -> [AudioSegment] {
-            try await read(dreamID).segments
-        }
+
+    public func segments(dreamID: UUID) async throws -> [Segment] {
+        try await read(dreamID).segments
+    }
 
     public func removeSegment(dreamID: UUID, segmentID: UUID) async throws {
         var dream = try await read(dreamID)
-
-        let originalCount = dream.segments.count
+        let original = dream.segments.count
         dream.segments.removeAll { $0.id == segmentID }
 
-        guard dream.segments.count < originalCount else {
-            throw DreamStoreError.segmentNotFound(segmentID)       // new case below
+        guard dream.segments.count < original else {
+            throw DreamStoreError.segmentNotFound(segmentID)
         }
-        try await write(dream)                                    // atomic replace
+        try await write(dream)
     }
-    
-    public func upsertSegment(_ seg: AudioSegment, dreamID: UUID) async throws {
-        var dream = try await read(dreamID)                // fresh snapshot *now*
+
+    public func upsertSegment(_ seg: Segment, dreamID: UUID) async throws {
+        var dream = try await read(dreamID)
         if let i = dream.segments.firstIndex(where: { $0.id == seg.id }) {
-            dream.segments[i] = seg                        // overwrite in place
+            dream.segments[i] = seg
         } else {
-            dream.segments.append(seg)                     // truly new row
+            dream.segments.append(seg)
         }
-        try await write(dream)                             // atomic replace
+        try await write(dream)
     }
-    
+
     public func allDreams() async throws -> [Dream] {
         let files = try FileManager.default.contentsOfDirectory(at: root,
                             includingPropertiesForKeys: nil)
@@ -113,58 +110,67 @@ public actor FileDreamStore: DreamStore, Sendable {
 
         var dreams: [Dream] = []
         for url in files {
-            do { dreams.append(try decoder.decode(Dream.self,
-                              from: Data(contentsOf: url))) }
-            catch { /* skip corrupt file, or wrap if you prefer */ }
+            if let d = try? decoder.decode(Dream.self, from: Data(contentsOf: url)) {
+                dreams.append(d)
+            }
         }
-        dreams.sort { $0.created > $1.created }      // newest first
+        dreams.sort { $0.created > $1.created }
         return dreams
     }
-    
+
     public func updateTitle(dreamID: UUID, title: String) async throws {
         var dream = try await read(dreamID)
         dream.title = title
         try await write(dream)
     }
-    
+
     public func getTranscript(dreamID: UUID) async throws -> String? {
-        let dream = try await read(dreamID)
-        let transcript = dream.transcript ?? ""
-        return transcript
+        try await read(dreamID).transcript
     }
-    
+
     public func getVideoURL(dreamID: UUID) async throws -> URL? {
-        // File store doesn't handle video URLs - return nil
+        // File store doesn’t handle video URLs.
         return nil
     }
     
-    internal func replaceSegments(
-            _ id: UUID,
-            with newSegments: [AudioSegment]
-        ) async throws {
-            var dream = try await read(id)
-            dream.segments = newSegments
-            try await write(dream)
-        }
+    public func getDream(_ id: UUID) async throws -> Dream {
+        try await read(id)                 // fast local read
+    }
+    
+    public func generateSummary(for id: UUID) async throws -> String {
+        // 1️⃣ read what we have
+        var dream = try await read(id)
+        
+        // 2️⃣ fallback: use transcript (if any) or “”
+        let summary = dream.transcript ?? ""
+        guard dream.summary == nil else { return dream.summary! }   // already summarised
+        
+        dream.summary = summary
+        try await write(dream)        // persist so UI sees it
+        return summary
+    }
+    
+    public func generateSummaryFallback(id: UUID, text: String) async throws {
+        try await updateDream(id) { $0.summary = text }
+    }
 
-        /// Insert-or-update: if we already have a JSON file with this ID
-        /// it is overwritten, otherwise a fresh file is created.
-        /// Lets the sync layer converge on the server’s canonical dream list.
-        internal func upsert(_ dream: Dream) async throws {
-            try await write(dream)
-        }
+    internal func replaceSegments(_ id: UUID, with segments: [Segment]) async throws {
+        var dream = try await read(id)
+        dream.segments = segments
+        try await write(dream)
+    }
 
-        /// Generic mutate-in-place helper.  The closure receives an `inout Dream`
-        /// so callers can tweak any field without re-decoding outside this actor.
-        internal func updateDream(
-            _ id: UUID,
-            mutating body: (inout Dream) -> Void
-        ) async throws {
-            var dream = try await read(id)
-            body(&dream)
-            try await write(dream)
-        }
+    internal func upsert(_ dream: Dream) async throws {
+        try await write(dream)
+    }
 
+    internal func updateDream(_ id: UUID,
+                              mutating body: (inout Dream) -> Void) async throws {
+        var dream = try await read(id)
+        body(&dream)
+        try await write(dream)
+    }
+    
     // MARK: – Helpers
 
     private func url(for id: UUID) -> URL {
@@ -193,7 +199,6 @@ public actor FileDreamStore: DreamStore, Sendable {
         }
 
         let fileURL = url(for: dream.id)
-        // Atomic write: encode to a tmp file then replace.
         do {
             let tmpURL = fileURL.appendingPathExtension("tmp")
             try data.write(to: tmpURL, options: .atomic)

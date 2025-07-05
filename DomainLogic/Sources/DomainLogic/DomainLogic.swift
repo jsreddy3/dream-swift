@@ -28,12 +28,23 @@ public struct RecordingHandle: Sendable, Equatable {
 /// DomainLogic
 public protocol DreamStore: Sendable {
     func insertNew(_ dream: Dream) async throws
-    func appendSegment(dreamID: UUID, segment: AudioSegment) async throws
+    func appendSegment(dreamID: UUID, segment: Segment) async throws
     func removeSegment(dreamID: UUID, segmentID: UUID) async throws
-    func segments(dreamID: UUID) async throws -> [AudioSegment]
+    func segments(dreamID: UUID) async throws -> [Segment]
     func getTranscript(dreamID: UUID) async throws -> String?
     func markCompleted(_ dreamID: UUID) async throws
     func allDreams() async throws -> [Dream]
     func updateTitle(dreamID: UUID, title: String) async throws
     func getVideoURL(dreamID: UUID) async throws -> URL?
+    func getDream(_ id: UUID) async throws -> Dream         // NEW
+    func requestAnalysis(for id: UUID) async throws
+    
+    @discardableResult
+    func generateSummary(for id: UUID) async throws -> String
+}
+
+public extension DreamStore {
+    // Make it optional for callers & for FileDreamStore.
+    func requestAnalysis(for id: UUID) async throws { }
+    func generateSummaryFallback(id: UUID, text: String) async throws {}
 }
