@@ -75,6 +75,13 @@
                 <key>NSIncludesSubdomains</key>
                 <true/>
             </dict>
+			<key>172.20.10.2</key>
+            <dict>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+                <key>NSIncludesSubdomains</key>
+                <true/>
+            </dict>
             <key>192.168.11.53</key>
             <dict>
                 <key>NSExceptionAllowsInsecureHTTPLoads</key>

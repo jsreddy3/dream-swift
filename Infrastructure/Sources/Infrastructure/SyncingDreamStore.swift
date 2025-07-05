@@ -196,8 +196,11 @@ public actor SyncingDreamStore: DreamStore, Sendable {
     public func generateSummary(for id: UUID) async throws -> String {
         if isOnline {
             let summary = try await remote.generateSummary(for: id)
-            // update local copy so offline cache is in sync
-            try? await local.updateDream(id) { $0.summary = summary }
+            // IMPORTANT: After generating summary, the backend also updates the title
+            // We need to fetch the complete updated dream to get both title and summary
+            if let fresh = try? await remote.getDream(id) {
+                try? await local.upsert(fresh)
+            }
             return summary
         }
         
