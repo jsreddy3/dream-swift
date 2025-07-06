@@ -8,7 +8,7 @@ public enum Config {
 //     public static let apiBase = URL(string: "http://172.20.10.5:8000")!
 //    public static let apiBase = URL(string: "http://172.20.10.2:8000")!
 //    public static let apiBase = URL(string: "https://backend-dream.fly.dev")!
-    public static let apiBase = URL(string: "http://192.168.11.53:8000")!
+    public static let apiBase = URL(string: "http://192.168.4.24:8000")!
 
     /// Google OAuth client ID for the iOS bundle
     public static let googleClientID = "291516817801-f96frg6p6qujejfml5b6i7l7bbk4f8ah.apps.googleusercontent.com"

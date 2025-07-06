@@ -10,6 +10,13 @@ import CoreModels
 import Infrastructure
 import DomainLogic
 
+// MARK: - Color Palette --------------------------------------------------
+private extension Color {
+    static let campfireBg   = Color(red: 33/255, green: 24/255, blue: 21/255)
+    static let campfireCard = Color(red: 54/255, green: 37/255, blue: 32/255)
+    static let ember        = Color(red: 255/255, green: 145/255, blue: 0/255)
+}
+
 // MARK: - View -----------------------------------------------------------
 
 struct DreamLibraryView: View {
@@ -24,16 +31,10 @@ struct DreamLibraryView: View {
             if vm.dreams.isEmpty {
                 Text("No dreams recorded yet")
                     .font(.custom("Avenir-Medium", size: 18))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.7))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(.systemBackground))
             } else {
-                List(vm.dreams) { dream in
-                    NavigationLink(value: dream) {
-                        row(for: dream)
-                    }
-                }
-                .listStyle(.plain)
+                dreamList
             }
         }
         .navigationTitle("Dream Library")
@@ -47,31 +48,131 @@ struct DreamLibraryView: View {
         }
         .onAppear { 
             configureNavFont()
-            Task { await vm.refresh() }
         }
     }
 
+    // MARK: Date-Grouped List ------------------------------------------------
+    
+    private var dreamList: some View {
+        let sectioned = groupDreamsByDate(vm.dreams)
+        
+        return List {
+            ForEach(sectioned.keys.sorted(by: >), id: \.self) { key in
+                if let dreamGroup = sectioned[key] {
+                    Section(header: Text(key).foregroundColor(Color.ember)) {
+                        ForEach(dreamGroup) { dream in
+                            NavigationLink(value: dream) {
+                                row(for: dream)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .listStyle(.plain)
+    }
+    
+    /// Groups dreams by relevant date descriptions - Today, Yesterday, weekdays, or date
+    private func groupDreamsByDate(_ dreams: [Dream]) -> [String: [Dream]] {
+        let cal = Calendar.current
+        let now = Date()
+        
+        return Dictionary(grouping: dreams) { dream -> String in
+            let date = dream.created_at
+            
+            if cal.isDateInToday(date) {
+                return "Today"
+            } else if cal.isDateInYesterday(date) {
+                return "Yesterday"
+            } else if cal.isDate(date, equalTo: now, toGranularity: .weekOfYear) {
+                // Same week, return day name
+                let formatter = DateFormatter()
+                formatter.dateFormat = "EEEE" // Full day name
+                return formatter.string(from: date)
+            } else {
+                // Different week, return formatted date
+                let formatter = DateFormatter()
+                formatter.dateStyle = .medium
+                return formatter.string(from: date)
+            }
+        }
+    }
+    
     // MARK: Row -----------------------------------------------------------
+
+    // MARK: Dream Row ------------------------------------------------------
 
     @ViewBuilder
     private func row(for dream: Dream) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(dream.title.isEmpty ? "Untitled" : dream.title)
-                .font(.custom("Avenir-Heavy", size: 18))
+        DreamCardView(dream: dream)
+            .listRowSeparator(.hidden)              // hide default divider
+            .listRowInsets(.init())                 // edge-to-edge card
+            .listRowBackground(Color.clear)         // transparent list bg
+    }
 
-            if let summary = dream.summary, !summary.isEmpty {
-                Text(summary)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            } else if let transcript = dream.transcript, !transcript.isEmpty {
-                Text(transcript)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+    /// A rounded card-style representation of a dream.
+    private struct DreamCardView: View {
+        let dream: Dream
+        
+        var body: some View {
+            VStack(alignment: .leading, spacing: 8) {
+                // Title + optional state icon
+                HStack(alignment: .firstTextBaseline) {
+                    Text(dream.title.isEmpty ? "Untitled" : dream.title)
+                        .font(.custom("Avenir-Heavy", size: 18))
+                        .foregroundColor(.white)
+                    Spacer(minLength: 4)
+                    stateIcon
+                }
+                
+                // Summary ⇢ Transcript fallback
+                if let text = primaryText, !text.isEmpty {
+                    Text(text)
+                        .font(.custom("Avenir-Book", size: 14))
+                        .foregroundColor(.white.opacity(0.8))
+                        .lineLimit(3)
+                }
+                
+                // Date footer
+                Text(dream.created_at, format: .dateTime.year().month().day())
+                    .font(.caption2)
+                    .foregroundColor(.ember)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.campfireCard)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color.ember.opacity(0.25), lineWidth: 1)
+                    )
+            )
+            .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
+        }
+        
+        // MARK: Helpers
+        private var primaryText: String? {
+            if let summary = dream.summary, !summary.isEmpty { return summary }
+            return dream.transcript
+        }
+        
+        @ViewBuilder
+        private var stateIcon: some View {
+            switch dream.state {
+            case .completed:
+                Image(systemName: "checkmark.seal.fill")
+                    .foregroundStyle(Color.ember)
+                    .font(.system(size: 14, weight: .semibold))
+            case .video_generated:
+                Image(systemName: "video.fill")
+                    .foregroundStyle(Color.ember)
+                    .font(.system(size: 14, weight: .semibold))
+            default:
+                EmptyView()
             }
         }
-        .padding(.vertical, 4)
     }
 
     // MARK: Nav Bar Font --------------------------------------------------

@@ -18,7 +18,7 @@ public struct StartCaptureDream: Sendable {
     public func callAsFunction() async throws -> (dreamID: UUID, handle: RecordingHandle) {
         let handle = try await recorder.begin()
         let dream = Dream(id: UUID(),
-                          created: Date(),
+                          created_at: Date(),
                           title: "Untitled Dream",
                           transcript: nil)
         try await store.insertNew(dream)

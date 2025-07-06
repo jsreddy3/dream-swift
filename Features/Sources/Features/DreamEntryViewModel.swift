@@ -22,7 +22,7 @@ public final class DreamEntryViewModel: ObservableObject {
     //  Private bits
     // ──────────────────────────────────────────────────────────────
     private let store: DreamStore
-    private let timeout: Duration = .seconds(5)
+    private let timeout: Duration = .seconds(10)
 
     // ──────────────────────────────────────────────────────────────
     //  Init
@@ -45,7 +45,7 @@ public final class DreamEntryViewModel: ObservableObject {
         guard self.dream.analysis == nil else { return }
         await runWithBusyAndErrors {
             try await self.store.requestAnalysis(for: self.dream.id)
-            try await Task.sleep(for: .seconds(15))      // crude poll
+            try await Task.sleep(for: .seconds(10))      // crude poll
             await self.refresh()
         }
     }

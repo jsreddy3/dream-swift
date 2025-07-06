@@ -54,11 +54,17 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     // MARK: – DreamStore entry-points
 
     public func insertNew(_ dream: Dream) async throws {
-        struct Payload: Encodable { let id: UUID; let title: String }
+        struct Payload: Encodable {
+            let id: UUID
+            let title: String
+            let created_at: Date
+        }
         let req = try await makeRequest(
             path: "dreams/",
             method: "POST",
-            json: Payload(id: dream.id, title: dream.title)
+            json: Payload(id: dream.id,
+                          title: dream.title,
+                          created_at: dream.created_at)
         )
         try await perform(req)
     }
@@ -145,7 +151,6 @@ public actor RemoteDreamStore: DreamStore, Sendable {
             method: "POST"
         )
         try await perform(req)
-        cancelSSE(for: dreamID)            // no more transcripts will arrive
     }
 
     public func allDreams() async throws -> [Dream] {
@@ -250,7 +255,6 @@ public actor RemoteDreamStore: DreamStore, Sendable {
                 }
             } catch {
                 // network closed or server hung up — silently drop the stream
-                await self.cancelSSE(for: did)
             }
         }
 

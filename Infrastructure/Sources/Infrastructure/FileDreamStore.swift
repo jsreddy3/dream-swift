@@ -114,7 +114,7 @@ public actor FileDreamStore: DreamStore, Sendable {
                 dreams.append(d)
             }
         }
-        dreams.sort { $0.created > $1.created }
+        dreams.sort { $0.created_at > $1.created_at }
         return dreams
     }
 

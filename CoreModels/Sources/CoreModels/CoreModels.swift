@@ -6,9 +6,9 @@ public enum DreamState: String, Codable, Sendable {
     case video_generated = "video_generated"
 }
 
-public struct Dream: Identifiable, Codable, Equatable, Sendable {
+public struct Dream: Identifiable, Equatable, Sendable, Codable {
     public let id: UUID
-    public var created: Date
+    public var created_at: Date
     public var title: String
     public var transcript: String?
     public var segments: [Segment]
@@ -20,7 +20,7 @@ public struct Dream: Identifiable, Codable, Equatable, Sendable {
     public var analysis: String?
     
     enum CodingKeys: String, CodingKey {
-        case id, created, title, transcript, segments, state
+        case id, created_at, title, transcript, segments, state
         case videoS3Key = "video_s3_key"
         case summary
         case additionalInfo  = "additional_info"
@@ -29,7 +29,7 @@ public struct Dream: Identifiable, Codable, Equatable, Sendable {
 
     public init(
         id: UUID = UUID(),
-        created: Date = Date(),
+        created_at: Date = Date(),
         title: String,
         transcript: String? = nil,
         segments: [Segment] = [],
@@ -40,7 +40,7 @@ public struct Dream: Identifiable, Codable, Equatable, Sendable {
         analysis: String? = nil
     ) {
         self.id = id
-        self.created = created
+        self.created_at = created_at
         self.title = title
         self.transcript = transcript
         self.segments = segments
@@ -49,6 +49,39 @@ public struct Dream: Identifiable, Codable, Equatable, Sendable {
         self.summary = summary
         self.additionalInfo = additionalInfo
         self.analysis = analysis
+    }
+
+    // MARK: Codable
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id       = try c.decode(UUID.self, forKey: .id)
+        if let ts = try c.decodeIfPresent(Date.self, forKey: .created_at) {
+            created_at = ts
+        } else {
+            created_at = Date()
+        }
+        title     = try c.decode(String.self, forKey: .title)
+        transcript = try c.decodeIfPresent(String.self, forKey: .transcript)
+        segments   = try c.decodeIfPresent([Segment].self, forKey: .segments) ?? []
+        state      = try c.decodeIfPresent(DreamState.self, forKey: .state) ?? .draft
+        videoS3Key = try c.decodeIfPresent(String.self, forKey: .videoS3Key)
+        summary    = try c.decodeIfPresent(String.self, forKey: .summary)
+        additionalInfo = try c.decodeIfPresent(String.self, forKey: .additionalInfo)
+        analysis   = try c.decodeIfPresent(String.self, forKey: .analysis)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(created_at, forKey: .created_at)    // always canonical out
+        try c.encode(title, forKey: .title)
+        try c.encode(segments, forKey: .segments)
+        try c.encode(state, forKey: .state)
+        try c.encodeIfPresent(transcript, forKey: .transcript)
+        try c.encodeIfPresent(videoS3Key, forKey: .videoS3Key)
+        try c.encodeIfPresent(summary, forKey: .summary)
+        try c.encodeIfPresent(additionalInfo, forKey: .additionalInfo)
+        try c.encodeIfPresent(analysis, forKey: .analysis)
     }
 }
 
