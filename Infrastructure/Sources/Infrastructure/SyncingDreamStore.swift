@@ -122,7 +122,7 @@ public actor SyncingDreamStore: DreamStore, Sendable {
             for dream in cloud {
                 try? await local.upsert(dream)
             }
-            return cloud
+            return cloud.sorted { $0.created_at > $1.created_at }
         }
         return cached
     }
