@@ -156,14 +156,12 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     public func allDreams() async throws -> [Dream] {
         let req = try await makeRequest(path: "dreams/", method: "GET")
         
-        // Debug: print raw response
         let (data, _) = try await session.data(for: req)
         
         do {
             let all_dreams = try decoder.decode([Dream].self, from: data)
             return all_dreams
         } catch {
-            print("RemoteDreamStore: Decoding error: \(error)")
             // Try to decode what we can
             if let json = try? JSONSerialization.jsonObject(with: data, options: []) {
                 print("Raw JSON: \(json)")

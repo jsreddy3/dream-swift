@@ -25,6 +25,7 @@ final class DreamLibraryViewModel: ObservableObject {
         do {
             let all = try await store.allDreams()
             guard !Task.isCancelled else { return }
+            
             self.dreams = all
             refreshError = nil
         } catch {
