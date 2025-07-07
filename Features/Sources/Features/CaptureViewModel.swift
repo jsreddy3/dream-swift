@@ -30,6 +30,7 @@ public final class CaptureViewModel {
 
     var state: CaptureState = .idle          // drives the entire UI
     var segments: [Segment] = []              // drives the on-screen list
+    var isExtending = false                   // tracks if user clicked "Extend Dream"
 
     private var dreamID: UUID?
     private var handle: RecordingHandle?
@@ -102,6 +103,7 @@ public final class CaptureViewModel {
             try await refreshSegments()
 
             isTyping = false
+            isExtending = false  // reset when we go back to clipped
             state = .clipped
         } catch {
             state = .failed("Text save error: \(error.localizedDescription)")
@@ -112,6 +114,11 @@ public final class CaptureViewModel {
     func finish() {
         guard case .clipped = state else { return }
         Task { await completeDream() }
+    }
+    
+    func extend() {
+        guard case .clipped = state else { return }
+        isExtending = true
     }
     
     func remove(_ segment: Segment) {
@@ -168,6 +175,7 @@ public final class CaptureViewModel {
             order += 1
             segments.append(newSeg)              // ← row appears immediately
             try await refreshSegments()           // still reconciles if online
+            isExtending = false                  // reset when we go back to clipped
             state = .clipped
         } catch {
             state = .failed("Stop error: \(error.localizedDescription)")
@@ -181,7 +189,7 @@ public final class CaptureViewModel {
             try await done(dreamID: id)
             lastSavedID = id
             reset()
-            state = .idle
+            // Don't reset to idle - we're navigating away
         } catch {
             state = .failed("Save error: \(error.localizedDescription)")
         }
@@ -205,6 +213,7 @@ public final class CaptureViewModel {
         handle  = nil
         order   = 0
         segments.removeAll()
+        isExtending = false
     }
     
     deinit {

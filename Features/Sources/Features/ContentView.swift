@@ -83,42 +83,46 @@ public struct ContentView: View {
                     .fixedSize()
                     .cornerRadius(50)
                 
-                if vm.state != .recording {
+                // Show mode toggle only when not recording AND (not clipped OR extending)
+                if vm.state != .recording && (vm.state != .clipped || vm.isExtending) {
                     ModeToggle(selection: $mode, disabled: false)
                         .transition(.opacity)
                 }
 
-                ZStack {
-                    // Mic button – show only in Voice
-                    if mode == .voice {
-                        Button { vm.startOrStop() } label: {
-                            Image(systemName: icon(for: vm.state))
-                                .resizable()
-                                .frame(width: 88, height: 88)
-                                .foregroundStyle(color(for: vm.state))
+                // Show mic/text only when not clipped OR when extending (and not saving)
+                if (vm.state != .clipped && vm.state != .saving) || vm.isExtending {
+                    ZStack {
+                        // Mic button – show only in Voice
+                        if mode == .voice {
+                            Button { vm.startOrStop() } label: {
+                                Image(systemName: icon(for: vm.state))
+                                    .resizable()
+                                    .frame(width: 88, height: 88)
+                                    .foregroundStyle(color(for: vm.state))
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
-                    }
 
-                    // Text entry – show only in Text
-                    if mode == .text {
-                        TextClipEntry(
-                            text: $draft,
-                            disabled: false,
-                            isFocused: $textEntryFocused,
-                            onSave: {
-                                textEntryFocused = false
-                                vm.startOrStopText(draft)
-                                draft = ""
-                            })
+                        // Text entry – show only in Text
+                        if mode == .text {
+                            TextClipEntry(
+                                text: $draft,
+                                disabled: false,
+                                isFocused: $textEntryFocused,
+                                onSave: {
+                                    textEntryFocused = false
+                                    vm.startOrStopText(draft)
+                                    draft = ""
+                                })
+                        }
                     }
+                    .frame(height: 88)
+                    .animation(.easeInOut(duration: 0.2), value: mode)
                 }
-                .frame(height: 88)
-                .animation(.easeInOut(duration: 0.2), value: mode)
                 
-                if vm.state == .clipped {
-                    VStack(spacing: 4) {
-                        // primary action – pill-shaped, accent-coloured
+                if vm.state == .clipped && !vm.isExtending {
+                    VStack(spacing: 12) {
+                        // primary action – Complete Dream
                         Button {
                             vm.finish()
                         } label: {
@@ -132,17 +136,27 @@ public struct ContentView: View {
                                         .fill(Color.accentColor)
                                 )
                         }
-                        // secondary hint – tiny, underlined
-                        Text("or add more about your dream above")
-                            .font(.custom("Avenir-Book", size: 16))
-                            .underline()
-                            .foregroundColor(.secondary)
-                            .padding(.top, 8)
+                        
+                        // secondary action – Extend Dream
+                        Button {
+                            vm.extend()
+                        } label: {
+                            Text("Extend Dream")
+                                .font(.custom("Avenir-Heavy", size: 18))
+                                .padding(.horizontal, 32)
+                                .padding(.vertical, 12)
+                                .foregroundColor(.secondary)
+                                .background(
+                                    Capsule()
+                                        .stroke(Color.secondary, lineWidth: 2)
+                                )
+                        }
                     }
                     .transition(.opacity)
                     .padding(.top, 5)
                 }
             }
+            .animation(.easeInOut(duration: 0.3), value: vm.isExtending)
             .navigationTitle("")  // These modifiers are now INSIDE NavigationStack
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -178,6 +192,13 @@ public struct ContentView: View {
                 Task {
                     let dream = (try? await vm.store.getDream(id)) ?? Dream(id: id, title: "")
                     await MainActor.run { dreamToOpen = dream }
+                }
+            }
+            .onAppear {
+                // If we're returning from a completed dream, show library
+                if vm.state == .saving {
+                    showLibrary = true
+                    vm.state = .idle
                 }
             }
         }
