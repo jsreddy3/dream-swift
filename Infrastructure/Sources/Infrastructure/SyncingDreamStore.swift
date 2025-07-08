@@ -96,6 +96,25 @@ public actor SyncingDreamStore: DreamStore, Sendable {
         enqueue(.rename(dreamID: dreamID, title: title))
     }
 
+    public func updateSummary(dreamID: UUID, summary: String) async throws {
+        try await local.updateSummary(dreamID: dreamID, summary: summary)
+        enqueue(.updateSummary(dreamID: dreamID, summary: summary))
+    }
+
+    public func updateTitleAndSummary(dreamID: UUID, title: String, summary: String) async throws {
+        try await local.updateTitleAndSummary(dreamID: dreamID, title: title, summary: summary)
+        enqueue(.updateTitleAndSummary(dreamID: dreamID, title: title, summary: summary))
+    }
+    
+    public func deleteDream(_ id: UUID) async throws {
+        try await local.deleteDream(id)
+        if isOnline {
+            try await remote.deleteDream(id)
+        } else {
+            enqueue(.delete(id))
+        }
+    }
+
     // MARK: – DreamStore reads (cache first, reconcile in background)
 
     public func segments(dreamID id: UUID) async throws -> [Segment] {
@@ -258,8 +277,11 @@ public actor SyncingDreamStore: DreamStore, Sendable {
         case .append(let id, let s):     try await remote.appendSegment(dreamID: id, segment: s)
         case .remove(let id, let sid):   try await remote.removeSegment(dreamID: id, segmentID: sid)
         case .rename(let id, let t):     try await remote.updateTitle(dreamID: id, title: t)
+        case .updateSummary(let id, let s): try await remote.updateSummary(dreamID: id, summary: s)
+        case .updateTitleAndSummary(let id, let t, let s): try await remote.updateTitleAndSummary(dreamID: id, title: t, summary: s)
         case .finish(let id):            try await remote.markCompleted(id)
         case .analyze(let id):           try await remote.requestAnalysis(id)
+        case .delete(let id):            try await remote.deleteDream(id)
         }
     }
 
@@ -294,6 +316,9 @@ internal enum PendingOp: Codable {
     case append(dreamID: UUID, segment: Segment)
     case remove(dreamID: UUID, segmentID: UUID)
     case rename(dreamID: UUID, title: String)
+    case updateSummary(dreamID: UUID, summary: String)
+    case updateTitleAndSummary(dreamID: UUID, title: String, summary: String)
     case finish(UUID)
     case analyze(UUID)
+    case delete(UUID)
 }

@@ -152,6 +152,14 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         )
         try await perform(req)
     }
+    
+    public func deleteDream(_ id: UUID) async throws {
+        let req = try await makeRequest(
+            path: "dreams/\(id)",
+            method: "DELETE"
+        )
+        try await perform(req)
+    }
 
     public func allDreams() async throws -> [Dream] {
         let req = try await makeRequest(path: "dreams/", method: "GET")
@@ -179,6 +187,36 @@ public actor RemoteDreamStore: DreamStore, Sendable {
             path: "dreams/\(dreamID)",
             method: "PATCH",
             json: Payload(title: title)
+        )
+        try await perform(req)
+    }
+
+    public func updateSummary(
+        dreamID: UUID,
+        summary: String
+    ) async throws {
+        struct Payload: Encodable { let summary: String }
+        let req = try await makeRequest(
+            path: "dreams/\(dreamID)",
+            method: "PATCH",
+            json: Payload(summary: summary)
+        )
+        try await perform(req)
+    }
+
+    public func updateTitleAndSummary(
+        dreamID: UUID,
+        title: String,
+        summary: String
+    ) async throws {
+        struct Payload: Encodable { 
+            let title: String
+            let summary: String 
+        }
+        let req = try await makeRequest(
+            path: "dreams/\(dreamID)",
+            method: "PATCH",
+            json: Payload(title: title, summary: summary)
         )
         try await perform(req)
     }

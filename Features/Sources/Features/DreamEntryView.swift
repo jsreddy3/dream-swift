@@ -49,9 +49,17 @@ struct DreamEntryView: View {
                     VStack(alignment: .leading, spacing: 24) {
 
                         // Title
-                        Text(vm.dream.title)
-                            .font(.custom("Avenir-Heavy", size: 32))
-                            .padding(.top, 8)
+                        if vm.isEditMode {
+                            TextField("Dream Title", text: $vm.editedTitle, axis: .vertical)
+                                .font(.custom("Avenir-Heavy", size: 32))
+                                .textFieldStyle(.roundedBorder)
+                                .lineLimit(nil)
+                                .padding(.top, 8)
+                        } else {
+                            Text(vm.dream.title)
+                                .font(.custom("Avenir-Heavy", size: 32))
+                                .padding(.top, 8)
+                        }
 
                         // Interpret button (only if analysis missing)
                         if vm.dream.analysis == nil {
@@ -69,7 +77,21 @@ struct DreamEntryView: View {
                         }
 
                         // Collapsible summary
-                        CollapsibleText(text: vm.dream.summary!)
+                        if vm.isEditMode {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Summary")
+                                    .font(.custom("Avenir-Medium", size: 18))
+                                    .foregroundColor(.secondary)
+                                
+                                TextEditor(text: $vm.editedSummary)
+                                    .font(.custom("Avenir-Book", size: 18))
+                                    .frame(minHeight: 120)
+                                    .padding(8)
+                                    .background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGray6)))
+                            }
+                        } else {
+                            CollapsibleText(text: vm.dream.summary!)
+                        }
 
                         Divider()
 
@@ -122,6 +144,27 @@ struct DreamEntryView: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if vm.isEditMode {
+                    HStack {
+                        Button("Cancel") {
+                            vm.cancelEdit()
+                        }
+                        .foregroundColor(.red)
+                        
+                        Button("Save") {
+                            Task { await vm.saveEdits() }
+                        }
+                        .fontWeight(.semibold)
+                    }
+                } else if vm.dream.summary != nil {
+                    Button("Edit") {
+                        vm.enterEditMode()
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -174,6 +217,8 @@ private struct StubStore: DreamStore {
     func removeSegment(dreamID: UUID, segmentID: UUID) async throws {}
     func markCompleted(_ id: UUID) async throws {}
     func updateTitle(dreamID: UUID, title: String) async throws {}
+    func updateSummary(dreamID: UUID, summary: String) async throws {}
+    func updateTitleAndSummary(dreamID: UUID, title: String, summary: String) async throws {}
     func segments(dreamID: UUID) async throws -> [Segment] { [] }
     func allDreams() async throws -> [Dream] { [] }
     func getTranscript(dreamID: UUID) async throws -> String? { nil }
@@ -182,5 +227,6 @@ private struct StubStore: DreamStore {
     func getDream(_ id: UUID) async throws -> Dream { Dream(title: "Stub") }
     func requestAnalysis(for id: UUID) async throws {}
     func generateSummary(for id: UUID) async throws -> String { "" }
+    func deleteDream(_ id: UUID) async throws {}
 }
 #endif

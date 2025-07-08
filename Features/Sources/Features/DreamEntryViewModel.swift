@@ -17,6 +17,9 @@ public final class DreamEntryViewModel: ObservableObject {
     @Published private(set) var dream: Dream
     @Published var isBusy        = false
     @Published var errorMessage: String?        // ← new
+    @Published var isEditMode    = false
+    @Published var editedTitle: String = ""
+    @Published var editedSummary: String = ""
 
     // ──────────────────────────────────────────────────────────────
     //  Private bits
@@ -47,6 +50,46 @@ public final class DreamEntryViewModel: ObservableObject {
             try await self.store.requestAnalysis(for: self.dream.id)
             try await Task.sleep(for: .seconds(10))      // crude poll
             await self.refresh()
+        }
+    }
+
+    func enterEditMode() {
+        isEditMode = true
+        editedTitle = dream.title
+        editedSummary = dream.summary ?? ""
+    }
+
+    func cancelEdit() {
+        isEditMode = false
+        editedTitle = ""
+        editedSummary = ""
+    }
+
+    func saveEdits() async {
+        await runWithBusyAndErrors {
+            let titleChanged = self.editedTitle != self.dream.title
+            let summaryChanged = self.editedSummary != (self.dream.summary ?? "")
+            
+            // Use combined update if both changed, otherwise update individually
+            if titleChanged && summaryChanged {
+                try await self.store.updateTitleAndSummary(
+                    dreamID: self.dream.id, 
+                    title: self.editedTitle, 
+                    summary: self.editedSummary
+                )
+            } else if titleChanged {
+                try await self.store.updateTitle(dreamID: self.dream.id, title: self.editedTitle)
+            } else if summaryChanged {
+                try await self.store.updateSummary(dreamID: self.dream.id, summary: self.editedSummary)
+            }
+            
+            // Refresh to get updated dream
+            await self.refresh()
+            
+            // Exit edit mode
+            self.isEditMode = false
+            self.editedTitle = ""
+            self.editedSummary = ""
         }
     }
 

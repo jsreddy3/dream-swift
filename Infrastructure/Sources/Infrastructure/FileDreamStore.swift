@@ -77,6 +77,11 @@ public actor FileDreamStore: DreamStore, Sendable {
         dream.state = .completed
         try await write(dream)
     }
+    
+    public func deleteDream(_ id: UUID) async throws {
+        let url = root.appendingPathComponent("\(id).json")
+        try FileManager.default.removeItem(at: url)
+    }
 
     public func segments(dreamID: UUID) async throws -> [Segment] {
         try await read(dreamID).segments
@@ -121,6 +126,19 @@ public actor FileDreamStore: DreamStore, Sendable {
     public func updateTitle(dreamID: UUID, title: String) async throws {
         var dream = try await read(dreamID)
         dream.title = title
+        try await write(dream)
+    }
+
+    public func updateSummary(dreamID: UUID, summary: String) async throws {
+        var dream = try await read(dreamID)
+        dream.summary = summary
+        try await write(dream)
+    }
+
+    public func updateTitleAndSummary(dreamID: UUID, title: String, summary: String) async throws {
+        var dream = try await read(dreamID)
+        dream.title = title
+        dream.summary = summary
         try await write(dream)
     }
 

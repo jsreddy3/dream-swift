@@ -12,9 +12,11 @@ final class DreamLibraryViewModel: ObservableObject {
     @Published var refreshError: Error?
 
     let store: SyncingDreamStore
+    private let deleteDream: DeleteDream
 
     init(store: SyncingDreamStore) {
         self.store = store
+        self.deleteDream = DeleteDream(store: store)
     }
 
     /// Fetches all dreams from the store and updates `dreams`.
@@ -32,6 +34,20 @@ final class DreamLibraryViewModel: ObservableObject {
             guard !Task.isCancelled else { return }
             refreshError = error
             NSLog("DreamLibraryViewModel.refresh error: \(error)")
+        }
+    }
+    
+    /// Deletes a dream and refreshes the list
+    func deleteDream(_ id: UUID) async {
+        do {
+            try await deleteDream(dreamID: id)
+            // Remove from local array immediately for better UX
+            dreams.removeAll { $0.id == id }
+            // Refresh from store to ensure consistency
+            await refresh()
+        } catch {
+            refreshError = error
+            NSLog("DreamLibraryViewModel.deleteDream error: \(error)")
         }
     }
 }

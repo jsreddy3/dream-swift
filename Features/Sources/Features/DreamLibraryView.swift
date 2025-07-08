@@ -64,6 +64,13 @@ struct DreamLibraryView: View {
                             NavigationLink(value: dream) {
                                 row(for: dream)
                             }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    Task { await vm.deleteDream(dream.id) }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                         }
                     }
                 }
