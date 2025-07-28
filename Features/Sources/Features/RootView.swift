@@ -42,10 +42,12 @@ public final class AuthBridge: ObservableObject {
 public struct RootView: View {                      // ← public
     @ObservedObject public var auth: AuthBridge
     public let captureVM: CaptureViewModel
+    public let libraryVM: DreamLibraryViewModel
 
-    public init(auth: AuthBridge, captureVM: CaptureViewModel) {
+    public init(auth: AuthBridge, captureVM: CaptureViewModel, libraryVM: DreamLibraryViewModel) {
         self.auth = auth
         self.captureVM = captureVM
+        self.libraryVM = libraryVM
     }
 
     public var body: some View {
@@ -63,7 +65,7 @@ public struct RootView: View {                      // ← public
                 }
             }
         } else {
-            ContentView(viewModel: captureVM)
+            ContentView(viewModel: captureVM, libraryViewModel: libraryVM)
                 .environmentObject(auth)
         }
     }

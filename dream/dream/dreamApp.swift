@@ -36,7 +36,8 @@ struct DreamApp: App {
 
     // `@Observable` class → store with @State
     @State private var captureVM: CaptureViewModel
-    @StateObject private var authBridge = AuthBridge(sharedAuth)   // ← no ‘self’
+    @State private var libraryVM: DreamLibraryViewModel
+    @StateObject private var authBridge = AuthBridge(sharedAuth)   // ← no 'self'
 
     
     // ──────────────────────────────────────────────────────────────
@@ -57,9 +58,12 @@ struct DreamApp: App {
         let s      = SyncingDreamStore(local: local, remote: remote)
         store = s                                   // ← ‘let’ member initialised
 
-        // build the VM without touching self
+        // build the VMs without touching self
         let vm = CaptureViewModel(recorder: recorder, store: s)
         _captureVM = State(wrappedValue: vm)        // ← no autoclosure capture
+        
+        let libVM = DreamLibraryViewModel(store: s)
+        _libraryVM = State(wrappedValue: libVM)
     }
 
         // MARK: UI scene -----------------------------------------------------
@@ -67,11 +71,12 @@ struct DreamApp: App {
 
     var body: some Scene {
             WindowGroup {
-                RootView(auth: authBridge, captureVM: captureVM)
+                RootView(auth: authBridge, captureVM: captureVM, libraryVM: libraryVM)
                     .font(.custom("Avenir", size: 17))
                     .onAppear {
                         appDelegate.configure(store: store)
                         Task { await store.drain() }                   // <─ run once, right now
+                        Task { await libraryVM.refresh() }             // <─ preload library data
 
 
                     }

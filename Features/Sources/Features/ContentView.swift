@@ -59,6 +59,7 @@ private struct ModeToggle: View {
 
 public struct ContentView: View {
     @State private var vm: CaptureViewModel
+    @State private var libraryVM: DreamLibraryViewModel
     @EnvironmentObject private var auth: AuthBridge
 
     @State private var mode: InputMode = .voice
@@ -67,8 +68,9 @@ public struct ContentView: View {
     @State private var dreamToOpen: Dream?    // navigation trigger
     @FocusState private var textEntryFocused: Bool
 
-    public init(viewModel: CaptureViewModel) {
+    public init(viewModel: CaptureViewModel, libraryViewModel: DreamLibraryViewModel) {
         _vm = State(initialValue: viewModel)
+        _libraryVM = State(initialValue: libraryViewModel)
     }
 
     public var body: some View {
@@ -172,7 +174,7 @@ public struct ContentView: View {
             .sheet(isPresented: $showLibrary) {
                 NavigationStack {
                     DreamLibraryView(
-                        viewModel: DreamLibraryViewModel(store: vm.store),
+                        viewModel: libraryVM,
                         shouldRefresh: vm.state == .saved
                     )
                 }
@@ -191,6 +193,8 @@ public struct ContentView: View {
                 guard let dream else { return }
                 // Use the completed dream directly - it has transcript consolidated
                 dreamToOpen = dream
+                // Refresh library to include the new dream
+                Task { await libraryVM.refresh() }
             }
             .onAppear {
                 // If we're returning from a completed dream, reset for new recording
@@ -273,8 +277,9 @@ struct ContentView_Previews: PreviewProvider {
 
         // 5.  Finally hand everything to the production view-model.
         let vm = CaptureViewModel(recorder: recorder, store: syncStore)
+        let libVM = DreamLibraryViewModel(store: syncStore)
 
-        return ContentView(viewModel: vm)
+        return ContentView(viewModel: vm, libraryViewModel: libVM)
             .previewDisplayName("Capture (safe preview)")
             .previewDevice("iPhone 15 Pro")
     }

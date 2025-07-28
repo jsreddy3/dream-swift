@@ -101,7 +101,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
                                    order: segment.order,
                                    text: segment.text ?? "")
                 let req = try await makeRequest(
-                    path: "dreams/\(dreamID)/segments",
+                    path: "dreams/\(dreamID.uuidString.lowercased())/segments",
                     method: "POST",
                     json: body
                 )
@@ -122,7 +122,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         segmentID: UUID
     ) async throws {
         let req = try await makeRequest(
-            path: "dreams/\(dreamID)/segments/\(segmentID)",
+            path: "dreams/\(dreamID.uuidString.lowercased())/segments/\(segmentID.uuidString.lowercased())",
             method: "DELETE"
         )
         try await perform(req)
@@ -130,7 +130,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
 
     public func segments(dreamID: UUID) async throws -> [Segment] {
         let req = try await makeRequest(
-            path: "dreams/\(dreamID)/segments",
+            path: "dreams/\(dreamID.uuidString.lowercased())/segments",
             method: "GET"
         )
         return try await decode([Segment].self, from: req)
@@ -138,7 +138,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     
     public func getTranscript(dreamID: UUID) async throws -> String? {
         let req = try await makeRequest(
-            path: "dreams/\(dreamID)/transcript",
+            path: "dreams/\(dreamID.uuidString.lowercased())/transcript",
             method: "GET"
         )
         let transcript = try await performReturningTranscript(req)
@@ -184,7 +184,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     ) async throws {
         struct Payload: Encodable { let title: String }
         let req = try await makeRequest(
-            path: "dreams/\(dreamID)",
+            path: "dreams/\(dreamID.uuidString.lowercased())",
             method: "PATCH",
             json: Payload(title: title)
         )
@@ -197,7 +197,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     ) async throws {
         struct Payload: Encodable { let summary: String }
         let req = try await makeRequest(
-            path: "dreams/\(dreamID)",
+            path: "dreams/\(dreamID.uuidString.lowercased())",
             method: "PATCH",
             json: Payload(summary: summary)
         )
@@ -214,7 +214,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
             let summary: String 
         }
         let req = try await makeRequest(
-            path: "dreams/\(dreamID)",
+            path: "dreams/\(dreamID.uuidString.lowercased())",
             method: "PATCH",
             json: Payload(title: title, summary: summary)
         )
@@ -253,7 +253,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     }
 
     // POST /dreams/{id}/generate-analysis
-    public func requestAnalysis(_ id: UUID) async throws {
+    public func requestAnalysis(for id: UUID) async throws {
         print("DEBUG: RemoteDreamStore.requestAnalysis called for id: \(id)")
         do {
             let req = try await makeRequest(
@@ -296,7 +296,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
 
         let url = base
             .appendingPathComponent("dreams")
-            .appendingPathComponent(did.uuidString)
+            .appendingPathComponent(did.uuidString.lowercased())
             .appendingPathComponent("stream")
 
         let task = Task.detached(priority: .utility) { [weak self] in
@@ -382,7 +382,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
             )
             
             let req = try await makeRequest(
-                path: "dreams/\(dreamID)/segments",
+                path: "dreams/\(dreamID.uuidString.lowercased())/segments",
                 method: "POST",
                 json: payload
             )
@@ -419,7 +419,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         comps.scheme = base.scheme
         comps.host   = base.host
         comps.port   = base.port
-        comps.path   = "/dreams/\(id)/upload-url"       // ← no leading /
+        comps.path   = "/dreams/\(id.uuidString.lowercased())/upload-url"       // ← no leading /
         comps.queryItems = [.init(name: "filename", value: filename)]
 
         var req = URLRequest(url: comps.url!)

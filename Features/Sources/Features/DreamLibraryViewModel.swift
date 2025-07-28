@@ -6,7 +6,7 @@ import SwiftUI
 import Observation
 
 @MainActor
-final class DreamLibraryViewModel: ObservableObject {
+public final class DreamLibraryViewModel: ObservableObject {
     @Published private(set) var dreams: [Dream] = []
     /// Non-nil when the latest `refresh()` failed. Use this to present an alert in the view layer.
     @Published var refreshError: Error?
@@ -14,7 +14,7 @@ final class DreamLibraryViewModel: ObservableObject {
     let store: SyncingDreamStore
     private let deleteDream: DeleteDream
 
-    init(store: SyncingDreamStore) {
+    public init(store: SyncingDreamStore) {
         self.store = store
         self.deleteDream = DeleteDream(store: store)
     }
@@ -22,7 +22,7 @@ final class DreamLibraryViewModel: ObservableObject {
     /// Fetches all dreams from the store and updates `dreams`.
     /// – Cancels gracefully when the surrounding `Task` is cancelled.
     /// – Publishes `refreshError` when an error is encountered so the UI can react.
-    func refresh() async {
+    public func refresh() async {
         guard !Task.isCancelled else { return }
         do {
             let all = try await store.allDreams()

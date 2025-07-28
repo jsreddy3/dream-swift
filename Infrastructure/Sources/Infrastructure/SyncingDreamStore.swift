@@ -91,8 +91,11 @@ public actor SyncingDreamStore: DreamStore, Sendable {
         let localDream = try await local.markCompleted(id)
         enqueue(.finish(id))
         
-        // If online, wait for remote to finish and return updated dream
+        // If online, ensure all pending operations for this dream are synced first
         if isOnline {
+            // Process any pending operations for this dream before marking complete
+            await drainOperationsForDream(id)
+            
             do {
                 return try await remote.markCompleted(id)
             } catch {
@@ -200,7 +203,7 @@ public actor SyncingDreamStore: DreamStore, Sendable {
         // otherwise enqueue for later just like other ops.
         if isOnline {
             print("DEBUG: Calling remote.requestAnalysis")
-            try await remote.requestAnalysis(id)
+            try await remote.requestAnalysis(for: id)
         } else {
             print("DEBUG: Offline, enqueueing for later")
             enqueue(.analyze(id))   // ← you may add this PendingOp later
@@ -224,6 +227,53 @@ public actor SyncingDreamStore: DreamStore, Sendable {
                 queue.insert(op, at: 0)
                 break
             }
+        }
+    }
+    
+    // Drain operations for a specific dream
+    private func drainOperationsForDream(_ dreamId: UUID) async {
+        guard isOnline else { return }
+        
+        // Find and process all operations related to this dream
+        var remainingOps: [PendingOp] = []
+        var opsToProcess: [PendingOp] = []
+        
+        // Separate operations for this dream from others
+        for op in queue {
+            if isDreamRelatedOperation(op, dreamId: dreamId) {
+                opsToProcess.append(op)
+            } else {
+                remainingOps.append(op)
+            }
+        }
+        
+        // Update queue to only contain non-dream operations
+        queue = remainingOps
+        
+        // Process all operations for this dream
+        for op in opsToProcess {
+            do {
+                try await perform(op)
+            } catch {
+                // If an operation fails, put it back at the front of the queue
+                queue.insert(op, at: 0)
+                break
+            }
+        }
+        
+        // Update the persistent log
+        truncateLogIfEmpty()
+    }
+    
+    // Helper to check if an operation is related to a specific dream
+    private func isDreamRelatedOperation(_ op: PendingOp, dreamId: UUID) -> Bool {
+        switch op {
+        case .create(let dream):
+            return dream.id == dreamId
+        case .append(let id, _), .remove(let id, _), .rename(let id, _), 
+             .updateSummary(let id, _), .updateTitleAndSummary(let id, _, _),
+             .finish(let id), .analyze(let id), .delete(let id):
+            return id == dreamId
         }
     }
     
@@ -314,7 +364,7 @@ public actor SyncingDreamStore: DreamStore, Sendable {
                 throw error
             }
         case .analyze(let id):           
-            try await remote.requestAnalysis(id)
+            try await remote.requestAnalysis(for: id)
         case .delete(let id):            
             try await remote.deleteDream(id)
         }
