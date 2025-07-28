@@ -183,11 +183,14 @@ public actor SyncingDreamStore: DreamStore, Sendable {
     }
 
     public func requestAnalysis(for id: UUID) async throws {
-        // delegate straight to remote if we’re online,
+        print("DEBUG: SyncingDreamStore.requestAnalysis called, isOnline: \(isOnline)")
+        // delegate straight to remote if we're online,
         // otherwise enqueue for later just like other ops.
         if isOnline {
-            try await remote.requestAnalysis(for: id)
+            print("DEBUG: Calling remote.requestAnalysis")
+            try await remote.requestAnalysis(id)
         } else {
+            print("DEBUG: Offline, enqueueing for later")
             enqueue(.analyze(id))   // ← you may add this PendingOp later
         }
     }

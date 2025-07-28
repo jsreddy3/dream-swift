@@ -76,7 +76,7 @@ struct DreamApp: App {
 
                     }
             }
-            .onChange(of: phase) { newPhase in
+            .onChange(of: phase) { oldPhase, newPhase in
                 if newPhase == .active {
                     Task { await store.drain() }
                 } else if newPhase == .background {

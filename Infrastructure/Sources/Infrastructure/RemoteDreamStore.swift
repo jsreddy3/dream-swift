@@ -223,21 +223,52 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     
     // GET /dreams/{id}
     public func getDream(_ id: UUID) async throws -> Dream {
+        print("DEBUG: RemoteDreamStore.getDream called for id: \(id)")
         let req = try await makeRequest(
             path: "dreams/\(id)",
             method: "GET"
         )
-        let dream = try await decode(Dream.self, from: req)
+        print("DEBUG: About to make GET request to: \(req.url?.absoluteString ?? "no url")")
+        let (data, _) = try await session.data(for: req)
+        
+        // Debug: print raw JSON
+        if let jsonString = String(data: data, encoding: .utf8) {
+            // Print first 500 chars to avoid flooding console
+            let preview = String(jsonString.prefix(500))
+            print("DEBUG: Raw JSON response preview: \(preview)...")
+            
+            // Check if analysis field exists in JSON
+            if let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let hasAnalysis = jsonData["analysis"] != nil
+                print("DEBUG: JSON contains 'analysis' field: \(hasAnalysis)")
+                if hasAnalysis, let analysisValue = jsonData["analysis"] {
+                    print("DEBUG: Analysis type: \(type(of: analysisValue)), is NSNull: \(analysisValue is NSNull)")
+                }
+            }
+        }
+        
+        let dream = try decoder.decode(Dream.self, from: data)
+        print("DEBUG: Decoded dream - has analysis: \(dream.analysis != nil)")
         return dream
     }
 
-    // POST /dreams/{id}/analysis  (non-blocking fire-and-forget)
+    // POST /dreams/{id}/generate-analysis
     public func requestAnalysis(_ id: UUID) async throws {
-        let req = try await makeRequest(
-            path: "dreams/\(id)/analysis-dog",
-            method: "POST"
-        )
-        try await perform(req)
+        print("DEBUG: RemoteDreamStore.requestAnalysis called for id: \(id)")
+        do {
+            let req = try await makeRequest(
+                path: "dreams/\(id)/generate-analysis",
+                method: "POST",
+                json: ["force_regenerate": false]
+            )
+            print("DEBUG: Request created: \(req.url?.absoluteString ?? "no url")")
+            print("DEBUG: About to perform request...")
+            try await perform(req)
+            print("DEBUG: Request completed successfully")
+        } catch {
+            print("DEBUG: requestAnalysis error: \(error)")
+            throw error
+        }
     }
     
     public func generateSummary(for id: UUID) async throws -> String {
