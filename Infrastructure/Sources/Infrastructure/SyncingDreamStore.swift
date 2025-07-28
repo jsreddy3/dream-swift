@@ -86,9 +86,21 @@ public actor SyncingDreamStore: DreamStore, Sendable {
         enqueue(.remove(dreamID: dreamID, segmentID: segmentID))
     }
 
-    public func markCompleted(_ id: UUID) async throws {
-        try await local.markCompleted(id)
+    public func markCompleted(_ id: UUID) async throws -> Dream {
+        // Mark completed locally first
+        let localDream = try await local.markCompleted(id)
         enqueue(.finish(id))
+        
+        // If online, wait for remote to finish and return updated dream
+        if isOnline {
+            do {
+                return try await remote.markCompleted(id)
+            } catch {
+                // If remote fails, return local dream
+                return localDream
+            }
+        }
+        return localDream
     }
 
     public func updateTitle(dreamID: UUID, title: String) async throws {
@@ -143,7 +155,7 @@ public actor SyncingDreamStore: DreamStore, Sendable {
             }
             return cloud.sorted { $0.created_at > $1.created_at }
         }
-        return cached
+        return cached.sorted { $0.created_at > $1.created_at }
     }
 
     public func getTranscript(dreamID id: UUID) async throws -> String? {
@@ -276,15 +288,35 @@ public actor SyncingDreamStore: DreamStore, Sendable {
 
     private func perform(_ op: PendingOp) async throws {
         switch op {
-        case .create(let d):             try await remote.insertNew(d)
-        case .append(let id, let s):     try await remote.appendSegment(dreamID: id, segment: s)
-        case .remove(let id, let sid):   try await remote.removeSegment(dreamID: id, segmentID: sid)
-        case .rename(let id, let t):     try await remote.updateTitle(dreamID: id, title: t)
-        case .updateSummary(let id, let s): try await remote.updateSummary(dreamID: id, summary: s)
-        case .updateTitleAndSummary(let id, let t, let s): try await remote.updateTitleAndSummary(dreamID: id, title: t, summary: s)
-        case .finish(let id):            try await remote.markCompleted(id)
-        case .analyze(let id):           try await remote.requestAnalysis(id)
-        case .delete(let id):            try await remote.deleteDream(id)
+        case .create(let d):             
+            try await remote.insertNew(d)
+        case .append(let id, let s):     
+            try await remote.appendSegment(dreamID: id, segment: s)
+        case .remove(let id, let sid):   
+            try await remote.removeSegment(dreamID: id, segmentID: sid)
+        case .rename(let id, let t):     
+            try await remote.updateTitle(dreamID: id, title: t)
+        case .updateSummary(let id, let s): 
+            try await remote.updateSummary(dreamID: id, summary: s)
+        case .updateTitleAndSummary(let id, let t, let s): 
+            try await remote.updateTitleAndSummary(dreamID: id, title: t, summary: s)
+        case .finish(let id):
+            do {
+                try await remote.markCompleted(id)
+            } catch {
+                // If dream doesn't exist (404), don't retry this operation
+                if let remoteError = error as? RemoteError,
+                   case .badStatus(let code, _) = remoteError,
+                   code == 404 {
+                    print("Dream \(id) not found on server, skipping finish operation")
+                    return
+                }
+                throw error
+            }
+        case .analyze(let id):           
+            try await remote.requestAnalysis(id)
+        case .delete(let id):            
+            try await remote.deleteDream(id)
         }
     }
 

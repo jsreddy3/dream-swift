@@ -145,17 +145,17 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         return transcript
     }
 
-    public func markCompleted(_ dreamID: UUID) async throws {
+    public func markCompleted(_ dreamID: UUID) async throws -> Dream {
         let req = try await makeRequest(
-            path: "dreams/\(dreamID)/finish",
+            path: "dreams/\(dreamID.uuidString.lowercased())/finish",
             method: "POST"
         )
-        try await perform(req)
+        return try await decode(Dream.self, from: req)
     }
     
     public func deleteDream(_ id: UUID) async throws {
         let req = try await makeRequest(
-            path: "dreams/\(id)",
+            path: "dreams/\(id.uuidString.lowercased())",
             method: "DELETE"
         )
         try await perform(req)
@@ -225,7 +225,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     public func getDream(_ id: UUID) async throws -> Dream {
         print("DEBUG: RemoteDreamStore.getDream called for id: \(id)")
         let req = try await makeRequest(
-            path: "dreams/\(id)",
+            path: "dreams/\(id.uuidString.lowercased())",
             method: "GET"
         )
         print("DEBUG: About to make GET request to: \(req.url?.absoluteString ?? "no url")")
@@ -257,7 +257,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         print("DEBUG: RemoteDreamStore.requestAnalysis called for id: \(id)")
         do {
             let req = try await makeRequest(
-                path: "dreams/\(id)/generate-analysis",
+                path: "dreams/\(id.uuidString.lowercased())/generate-analysis",
                 method: "POST",
                 json: ["force_regenerate": false]
             )
@@ -273,7 +273,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     
     public func generateSummary(for id: UUID) async throws -> String {
         let req = try await makeRequest(
-            path: "dreams/\(id)/generate-summary",
+            path: "dreams/\(id.uuidString.lowercased())/generate-summary",
             method: "POST"
         )
         
@@ -335,7 +335,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         
     public func getVideoURL(dreamID: UUID) async throws -> URL? {
         let req = try await makeRequest(
-            path: "dreams/\(dreamID)/video-url/",
+            path: "dreams/\(dreamID.uuidString.lowercased())/video-url/",
             method: "GET"
         )
         

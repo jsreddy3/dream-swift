@@ -172,7 +172,8 @@ public struct ContentView: View {
             .sheet(isPresented: $showLibrary) {
                 NavigationStack {
                     DreamLibraryView(
-                        viewModel: DreamLibraryViewModel(store: vm.store)
+                        viewModel: DreamLibraryViewModel(store: vm.store),
+                        shouldRefresh: vm.state == .saved
                     )
                 }
             }
@@ -186,18 +187,15 @@ public struct ContentView: View {
                 DreamEntryView(dream: dream, store: vm.store)
             }
             // 🏁 react to a save
-            .onChange(of: vm.lastSavedID) { id in
-                guard let id else { return }
-                // push right away with *cached* dream
-                Task {
-                    let dream = (try? await vm.store.getDream(id)) ?? Dream(id: id, title: "")
-                    await MainActor.run { dreamToOpen = dream }
-                }
+            .onChange(of: vm.lastSavedDream) { dream in
+                guard let dream else { return }
+                // Use the completed dream directly - it has transcript consolidated
+                dreamToOpen = dream
             }
             .onAppear {
-                // If we're returning from a completed dream, show library
-                if vm.state == .saving {
-                    showLibrary = true
+                // If we're returning from a completed dream, reset for new recording
+                if vm.state == .saved {
+                    vm.reset()
                     vm.state = .idle
                 }
             }

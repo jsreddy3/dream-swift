@@ -71,11 +71,12 @@ public actor FileDreamStore: DreamStore, Sendable {
         try await write(dream)
     }
 
-    public func markCompleted(_ dreamID: UUID) async throws {
+    public func markCompleted(_ dreamID: UUID) async throws -> Dream {
         var dream = try await read(dreamID)
-        guard dream.state == .draft else { return }          // idempotent
+        guard dream.state == .draft else { return dream }          // idempotent
         dream.state = .completed
         try await write(dream)
+        return dream
     }
     
     public func deleteDream(_ id: UUID) async throws {

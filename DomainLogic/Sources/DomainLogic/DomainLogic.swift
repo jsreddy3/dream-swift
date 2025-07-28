@@ -32,7 +32,7 @@ public protocol DreamStore: Sendable {
     func removeSegment(dreamID: UUID, segmentID: UUID) async throws
     func segments(dreamID: UUID) async throws -> [Segment]
     func getTranscript(dreamID: UUID) async throws -> String?
-    func markCompleted(_ dreamID: UUID) async throws
+    func markCompleted(_ dreamID: UUID) async throws -> Dream
     func allDreams() async throws -> [Dream]
     func updateTitle(dreamID: UUID, title: String) async throws
     func updateSummary(dreamID: UUID, summary: String) async throws

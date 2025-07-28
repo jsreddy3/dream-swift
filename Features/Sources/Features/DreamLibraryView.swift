@@ -21,9 +21,11 @@ private extension Color {
 
 struct DreamLibraryView: View {
     @StateObject private var vm: DreamLibraryViewModel
+    private let shouldRefresh: Bool
 
-    init(viewModel: DreamLibraryViewModel) {
+    init(viewModel: DreamLibraryViewModel, shouldRefresh: Bool = false) {
         _vm = StateObject(wrappedValue: viewModel)
+        self.shouldRefresh = shouldRefresh
     }
 
     var body: some View {
@@ -42,7 +44,12 @@ struct DreamLibraryView: View {
         .navigationDestination(for: Dream.self) { dream in
             DreamEntryView(dream: dream, store: vm.store)
         }
-        .task { await vm.refresh() }
+        .task { 
+            // Refresh if we have no dreams (first load) or explicitly requested
+            if vm.dreams.isEmpty || shouldRefresh {
+                await vm.refresh()
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             Task { await vm.refresh() }
         }
@@ -141,8 +148,8 @@ struct DreamLibraryView: View {
                         .lineLimit(3)
                 }
                 
-                // Date footer
-                Text(dream.created_at, format: .dateTime.year().month().day())
+                // Date footer with day
+                Text(formatDateWithDay(dream.created_at))
                     .font(.caption2)
                     .foregroundColor(.ember)
             }
@@ -179,6 +186,12 @@ struct DreamLibraryView: View {
             default:
                 EmptyView()
             }
+        }
+        
+        private func formatDateWithDay(_ date: Date) -> String {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "EEEE, MMM d, yyyy"  // e.g., "Monday, Dec 25, 2024"
+            return formatter.string(from: date)
         }
     }
 

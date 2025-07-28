@@ -7,7 +7,6 @@ import CoreModels
 
 struct DreamEntryView: View {
     @StateObject private var vm: DreamEntryViewModel
-    @FocusState private var addlInfoFocused: Bool
     
     @Environment(\.dismiss) private var dismiss
 
@@ -26,10 +25,25 @@ struct DreamEntryView: View {
                         Text(err)
                             .font(.custom("Avenir-Medium", size: 18))
                             .multilineTextAlignment(.center)
-                        Button("Close") {
-                            dismiss()
+                            .padding(.horizontal)
+                        
+                        switch vm.errorAction {
+                        case .retry:
+                            Button("Try Again") {
+                                Task { await vm.interpret() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                        case .wait:
+                            Button("OK") {
+                                dismiss()
+                            }
+                            .buttonStyle(.borderedProminent)
+                        case .close, .none:
+                            Button("Close") {
+                                dismiss()
+                            }
+                            .buttonStyle(.borderedProminent)
                         }
-                        .buttonStyle(.borderedProminent)
                     }
                     .padding()
                 } else if vm.dream.summary == nil {
@@ -38,9 +52,12 @@ struct DreamEntryView: View {
                         LoopingVideoView(named: "campfire_fullrange")
                             .frame(width: 240, height: 240)
                             .cornerRadius(40)
-                        Text("Interpreting your dream…")
+                        Text(vm.statusMessage ?? "Interpreting your dream…")
                             .font(.custom("Avenir-Medium", size: 20))
                             .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                            .animation(.easeInOut(duration: 0.3), value: vm.statusMessage)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color(.systemBackground))
@@ -60,6 +77,11 @@ struct DreamEntryView: View {
                                 .font(.custom("Avenir-Heavy", size: 32))
                                 .padding(.top, 8)
                         }
+                        
+                        // Date and day
+                        Text(formatDate(vm.dream.created_at))
+                            .font(.custom("Avenir-Medium", size: 16))
+                            .foregroundColor(Color(red: 255/255, green: 145/255, blue: 0/255))
 
                         // Interpret button (only if analysis missing)
                         if vm.dream.analysis == nil {
@@ -79,7 +101,7 @@ struct DreamEntryView: View {
                         // Collapsible summary
                         if vm.isEditMode {
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("Summary")
+                                Text("Dream Summary")
                                     .font(.custom("Avenir-Medium", size: 18))
                                     .foregroundColor(.secondary)
                                 
@@ -90,36 +112,16 @@ struct DreamEntryView: View {
                                     .background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGray6)))
                             }
                         } else {
-                            CollapsibleText(text: vm.dream.summary!)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Dream Summary")
+                                    .font(.custom("Avenir-Medium", size: 18))
+                                    .foregroundColor(.secondary)
+                                
+                                CollapsibleText(text: vm.dream.summary!)
+                            }
                         }
 
                         Divider()
-
-                        // Additional info (future editable area)
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Additional Info")
-                                .font(.custom("Avenir-Medium", size: 18))
-                                .foregroundColor(.secondary)
-
-                            ZStack(alignment: .topLeading) {
-                                TextEditor(text: Binding(
-                                    get: { vm.dream.additionalInfo ?? "" },
-                                    set: { _ in /* not persisted yet */ }
-                                ))
-                                .focused($addlInfoFocused)
-                                .frame(minHeight: 120)
-                                .padding(8)
-                                .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemGray6)))
-
-                                if (vm.dream.additionalInfo ?? "").isEmpty && !addlInfoFocused {
-                                    Text("Tap to add…")
-                                        .font(.custom("Avenir-Book", size: 16))
-                                        .foregroundColor(.secondary)
-                                        .padding(.horizontal, 14)
-                                        .padding(.vertical, 12)
-                                }
-                            }
-                        }
 
                         // Analysis section (if available)
                         if let analysis = vm.dream.analysis {
@@ -137,34 +139,36 @@ struct DreamEntryView: View {
             }
 
             // Busy overlay (for interpretation / manual refresh)
-            if vm.isBusy {
+            if vm.isBusy && vm.statusMessage != nil {
+                // Full screen loading with status messages
+                VStack(spacing: 24) {
+                    LoopingVideoView(named: "campfire_fullrange")
+                        .frame(width: 240, height: 240)
+                        .cornerRadius(40)
+                    Text(vm.statusMessage ?? "Interpreting your dream…")
+                        .font(.custom("Avenir-Medium", size: 20))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                        .animation(.easeInOut(duration: 0.3), value: vm.statusMessage)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(.systemBackground))
+            } else if vm.isBusy {
+                // Simple progress overlay for other operations
                 Color.black.opacity(0.25).ignoresSafeArea()
                 ProgressView().scaleEffect(1.6)
             }
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                if vm.isEditMode {
-                    HStack {
-                        Button("Cancel") {
-                            vm.cancelEdit()
-                        }
-                        .foregroundColor(.red)
-                        
-                        Button("Save") {
-                            Task { await vm.saveEdits() }
-                        }
-                        .fontWeight(.semibold)
-                    }
-                } else if vm.dream.summary != nil {
-                    Button("Edit") {
-                        vm.enterEditMode()
-                    }
-                }
-            }
-        }
+    }
+    
+    // Format date as "Monday, December 25, 2024"
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMMM d, yyyy"
+        return formatter.string(from: date)
     }
 }
 
@@ -215,7 +219,7 @@ private struct StubStore: DreamStore {
     func insertNew(_ dream: Dream) async throws {}
     func appendSegment(dreamID: UUID, segment: Segment) async throws {}
     func removeSegment(dreamID: UUID, segmentID: UUID) async throws {}
-    func markCompleted(_ id: UUID) async throws {}
+    func markCompleted(_ id: UUID) async throws -> Dream { Dream(id: id, title: "Completed") }
     func updateTitle(dreamID: UUID, title: String) async throws {}
     func updateSummary(dreamID: UUID, summary: String) async throws {}
     func updateTitleAndSummary(dreamID: UUID, title: String, summary: String) async throws {}

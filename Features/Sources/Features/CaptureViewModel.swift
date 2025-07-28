@@ -43,6 +43,9 @@ public final class CaptureViewModel {
     @ObservationIgnored
     private(set) var lastSavedID: UUID?
     
+    @ObservationIgnored
+    private(set) var lastSavedDream: Dream?
+    
     public init(recorder: AudioRecorderActor, store: SyncingDreamStore) {
         self.store = store
         start = StartCaptureDream(recorder: recorder, store: store)
@@ -59,7 +62,17 @@ public final class CaptureViewModel {
 
     public func startOrStop() {
         switch state {
-        case .idle, .clipped, .saved:
+        case .idle:
+            // Starting fresh - reset everything
+            reset()
+            Task { await beginRecording() }
+        case .clipped:
+            // Continuing existing dream (only if not saved)
+            Task { await beginRecording() }
+        case .saved:
+            // Dream is already saved, start fresh
+            reset()
+            state = .idle
             Task { await beginRecording() }
         case .recording:
             Task { await endRecording() }
@@ -73,9 +86,15 @@ public final class CaptureViewModel {
         guard !cleaned.isEmpty else { return }
 
         switch state {
-        case .idle, .clipped where !isTyping:
+        case .idle where !isTyping:
+            // Starting fresh - reset everything
+            reset()
             isTyping = true
-            state = .recording                       // greys out picker instantly
+            state = .recording
+        case .clipped where !isTyping:
+            // Continuing existing dream
+            isTyping = true
+            state = .recording
         case .recording:
             Task { await finishText(cleaned) }       // ✓ tapped
         default:
@@ -186,10 +205,12 @@ public final class CaptureViewModel {
         guard let id = dreamID else { return }
         state = .saving
         do {
-            try await done(dreamID: id)
+            let completedDream = try await done(dreamID: id)
             lastSavedID = id
-            reset()
-            // Don't reset to idle - we're navigating away
+            lastSavedDream = completedDream
+            // Don't reset here - we might still extend this dream
+            // Reset will happen when starting a new recording session
+            state = .saved
         } catch {
             state = .failed("Save error: \(error.localizedDescription)")
         }
@@ -208,7 +229,7 @@ public final class CaptureViewModel {
         segments = latest
     }
 
-    private func reset() {
+    func reset() {
         dreamID = nil
         handle  = nil
         order   = 0
