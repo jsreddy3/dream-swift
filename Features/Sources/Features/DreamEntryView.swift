@@ -17,18 +17,11 @@ struct DreamEntryView: View {
     var body: some View {
         ZStack {
             // Background - matching profile page style
-            Color.black.ignoresSafeArea()
+            DesignSystem.Colors.backgroundPrimary.ignoresSafeArea()
             
             // Gradient overlay (warm and welcoming)
-            LinearGradient(
-                colors: [
-                    DesignSystem.Colors.ember.opacity(0.25),
-                    DesignSystem.Colors.ember.opacity(0.1)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            DesignSystem.Gradients.emberGradient
+                .ignoresSafeArea()
             
             // Animated stars background (brighter)
             StarsBackgroundView()
@@ -72,34 +65,13 @@ struct DreamEntryView: View {
                         // Dream interpretation orb
                         ZStack {
                             Circle()
-                                .fill(
-                                    RadialGradient(
-                                        colors: [
-                                            DesignSystem.Colors.ember.opacity(0.6),
-                                            DesignSystem.Colors.ember.opacity(0.1),
-                                            Color.clear
-                                        ],
-                                        center: .center,
-                                        startRadius: 30,
-                                        endRadius: 120
-                                    )
-                                )
+                                .fill(DesignSystem.Gradients.emberGlow)
                                 .frame(width: 240, height: 240)
                                 .blur(radius: 15)
                                 .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: vm.statusMessage)
                             
                             Circle()
-                                .fill(
-                                    RadialGradient(
-                                        colors: [
-                                            Color.black.opacity(0.8),
-                                            Color.black.opacity(0.3)
-                                        ],
-                                        center: .center,
-                                        startRadius: 30,
-                                        endRadius: 100
-                                    )
-                                )
+                                .fill(DesignSystem.Gradients.darkOverlay)
                                 .frame(width: 200, height: 200)
                             
                             Image(systemName: "sparkles")
@@ -199,40 +171,19 @@ struct DreamEntryView: View {
             if vm.isBusy && vm.statusMessage != nil {
                 // Full screen loading with status messages
                 ZStack {
-                    Color.black.opacity(0.8).ignoresSafeArea()
+                    DesignSystem.Colors.backgroundPrimary.opacity(DesignSystem.Opacity.prominent).ignoresSafeArea()
                     
                     VStack(spacing: 24) {
                         // Dream interpretation orb
                         ZStack {
                             Circle()
-                                .fill(
-                                    RadialGradient(
-                                        colors: [
-                                            DesignSystem.Colors.ember.opacity(0.6),
-                                            DesignSystem.Colors.ember.opacity(0.1),
-                                            Color.clear
-                                        ],
-                                        center: .center,
-                                        startRadius: 30,
-                                        endRadius: 120
-                                    )
-                                )
+                                .fill(DesignSystem.Gradients.emberGlow)
                                 .frame(width: 240, height: 240)
                                 .blur(radius: 15)
                                 .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: vm.statusMessage)
                             
                             Circle()
-                                .fill(
-                                    RadialGradient(
-                                        colors: [
-                                            Color.black.opacity(0.8),
-                                            Color.black.opacity(0.3)
-                                        ],
-                                        center: .center,
-                                        startRadius: 30,
-                                        endRadius: 100
-                                    )
-                                )
+                                .fill(DesignSystem.Gradients.darkOverlay)
                                 .frame(width: 200, height: 200)
                             
                             Image(systemName: "sparkles")
@@ -251,7 +202,7 @@ struct DreamEntryView: View {
                 }
             } else if vm.isBusy {
                 // Simple progress overlay for other operations
-                Color.black.opacity(0.25).ignoresSafeArea()
+                DesignSystem.Colors.overlayDim.ignoresSafeArea()
                 ProgressView().scaleEffect(1.6)
             }
         }

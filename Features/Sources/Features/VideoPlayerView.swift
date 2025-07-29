@@ -36,7 +36,7 @@ struct VideoPlayerView: View {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title)
                             .foregroundColor(.white)
-                            .background(Color.black.opacity(0.6))
+                            .background(DesignSystem.Colors.backgroundPrimary.opacity(DesignSystem.Opacity.semiVisible))
                             .clipShape(Circle())
                     }
                     .padding()
@@ -52,10 +52,10 @@ struct VideoPlayerView: View {
                                 .foregroundColor(.white)
                             Text("URL: \(url.lastPathComponent)")
                                 .font(.caption2)
-                                .foregroundColor(.white.opacity(0.8))
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
                         }
                         .padding(8)
-                        .background(Color.black.opacity(0.7))
+                        .background(DesignSystem.Colors.backgroundPrimary.opacity(0.7))
                         .cornerRadius(8)
                         
                         Spacer()
@@ -66,7 +66,7 @@ struct VideoPlayerView: View {
                         .font(.caption)
                         .foregroundColor(.white)
                         .padding(8)
-                        .background(Color.black.opacity(0.7))
+                        .background(DesignSystem.Colors.backgroundPrimary.opacity(0.7))
                         .cornerRadius(8)
                     }
                     .padding()

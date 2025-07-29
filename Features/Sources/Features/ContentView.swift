@@ -74,37 +74,13 @@ public struct ContentView: View {
     }
 
     public var body: some View {
-        ZStack {
-            // TEST: Bright red background to verify changes are showing
-            Color.red.opacity(0.3).ignoresSafeArea()
-            
-            // Much lighter base
-            Color(white: 0.15).ignoresSafeArea()
-            
-            // Very bright dreamy gradient
-            LinearGradient(
-                colors: [
-                    DesignSystem.Colors.ember.opacity(0.6),
-                    Color.purple.opacity(0.3),
-                    Color.pink.opacity(0.2)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-            
-            // Maximum brightness stars
-            StarsBackgroundView()
-                .opacity(1.0)
-                .ignoresSafeArea()
-            
-            NavigationStack {
-                ZStack {
-                    // Force transparent background
-                    Color.clear
-                    
-                    VStack(spacing: 24) {
-                Text(label(for: vm.state))
+        NavigationStack {
+            ZStack {
+                // Use the new unified dream background
+                DreamBackground()
+                
+                VStack(spacing: 24) {
+                    Text(label(for: vm.state))
                     .font(.custom("Avenir-Medium", size: 30))
                     .foregroundColor(.white)
                     .padding(.top, -50)
@@ -112,34 +88,13 @@ public struct ContentView: View {
                 // Dream capture orb - matching profile aesthetic
                 ZStack {
                     Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [
-                                    DesignSystem.Colors.ember,
-                                    DesignSystem.Colors.ember.opacity(0.4),
-                                    Color.clear
-                                ],
-                                center: .center,
-                                startRadius: 50,
-                                endRadius: 150
-                            )
-                        )
+                        .fill(DesignSystem.Gradients.emberGlow)
                         .frame(width: 300, height: 300)
                         .blur(radius: vm.state == .recording ? 20 : 10)
                         .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: vm.state)
                     
                     Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [
-                                    Color.black.opacity(0.6),
-                                    Color.black.opacity(0.2)
-                                ],
-                                center: .center,
-                                startRadius: 40,
-                                endRadius: 120
-                            )
-                        )
+                        .fill(DesignSystem.Gradients.darkOverlay)
                         .frame(width: 240, height: 240)
                     
                     Image(systemName: vm.state == .recording ? "waveform" : "moon.stars.fill")
@@ -267,11 +222,10 @@ public struct ContentView: View {
                     vm.state = .idle
                 }
             }
-                } // End VStack
-            } // End NavigationStack
-            .scrollContentBackground(.hidden) // Hide default background
-            .background(Color.clear)
-        } // End outer ZStack
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } // End ZStack
+            .toolbarBackground(.hidden, for: .navigationBar)
+        } // End NavigationStack
     }
 
     // MARK: – helpers

@@ -30,6 +30,18 @@ public enum DesignSystem {
         // System colors used in specific contexts
         public static let systemYellow = Color.yellow
         public static let systemGreen = Color(red: 139/255, green: 195/255, blue: 74/255)
+        public static let systemPurple = Color.purple
+        public static let systemPink = Color.pink
+        
+        // Background layers
+        public static let backgroundPrimary = Color.black
+        public static let backgroundSecondary = Color(white: 0.15)
+        public static let backgroundTertiary = campfireBg
+        
+        // Gradient colors for dream theme
+        public static let gradientEmber = ember.opacity(0.6)
+        public static let gradientPurple = systemPurple.opacity(0.3)
+        public static let gradientPink = systemPink.opacity(0.2)
     }
     
     // MARK: - Typography
@@ -198,6 +210,87 @@ public enum DesignSystem {
         public static let prominent: Double = 0.8
         public static let almostFull: Double = 0.9
     }
+    
+    // MARK: - Shadow System
+    public enum Shadow {
+        public struct ShadowStyle: Sendable {
+            let color: Color
+            let radius: CGFloat
+            let x: CGFloat
+            let y: CGFloat
+        }
+        
+        public static let elevation1 = ShadowStyle(
+            color: Color.black.opacity(0.4),
+            radius: 4,
+            x: 0,
+            y: 2
+        )
+        
+        public static let elevation2 = ShadowStyle(
+            color: Color.black.opacity(0.5),
+            radius: 8,
+            x: 0,
+            y: 4
+        )
+        
+        public static let elevation3 = ShadowStyle(
+            color: Color.black.opacity(0.6),
+            radius: 12,
+            x: 0,
+            y: 6
+        )
+    }
+}
+
+// MARK: - Gradient Definitions
+
+public extension DesignSystem {
+    enum Gradients {
+        // The main dream gradient used across the app
+        public static let dreamGradient = LinearGradient(
+            colors: [
+                Colors.gradientEmber,
+                Colors.gradientPurple,
+                Colors.gradientPink
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        
+        // Ember-focused gradient for accents
+        public static let emberGradient = LinearGradient(
+            colors: [
+                Colors.ember.opacity(0.25),
+                Colors.ember.opacity(0.1)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        
+        // Radial ember glow
+        public static let emberGlow = RadialGradient(
+            colors: [
+                Colors.ember,
+                Colors.ember.opacity(0.4),
+                Color.clear
+            ],
+            center: .center,
+            startRadius: 5,
+            endRadius: 80
+        )
+        
+        // Dark overlay gradient for readability
+        public static let darkOverlay = RadialGradient(
+            colors: [
+                Colors.backgroundPrimary.opacity(0.8),
+                Colors.backgroundPrimary.opacity(0.3)
+            ],
+            center: .center,
+            startRadius: 5,
+            endRadius: 80
+        )
+    }
 }
 
 // MARK: - Convenience Extensions
@@ -225,5 +318,48 @@ public extension View {
                 RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.pill)
                     .fill(DesignSystem.Colors.ember)
             )
+    }
+    
+    // MARK: - New Gradient Modifiers
+    
+    /// Applies the main dream gradient background
+    func dreamGradientBackground(ignoresSafeArea: Bool = true) -> some View {
+        self.background(
+            ZStack {
+                DesignSystem.Colors.backgroundSecondary
+                DesignSystem.Gradients.dreamGradient
+            }
+            .ignoresSafeArea(edges: ignoresSafeArea ? .all : [])
+        )
+    }
+    
+    /// Applies glass morphism card styling with consistent values
+    func glassCard(cornerRadius: CGFloat = DesignSystem.CornerRadius.large) -> some View {
+        self
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(DesignSystem.Colors.cardBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .stroke(DesignSystem.Colors.cardBorder, lineWidth: 1)
+                    )
+            )
+    }
+    
+    /// Applies glass morphism with padding
+    func glassCardWithPadding(padding: CGFloat = DesignSystem.Spacing.cardPadding) -> some View {
+        self
+            .padding(padding)
+            .glassCard()
+    }
+    
+    /// Applies standard shadow elevation
+    func dreamShadow(_ elevation: DesignSystem.Shadow.ShadowStyle = DesignSystem.Shadow.elevation1) -> some View {
+        self.shadow(
+            color: elevation.color,
+            radius: elevation.radius,
+            x: elevation.x,
+            y: elevation.y
+        )
     }
 }

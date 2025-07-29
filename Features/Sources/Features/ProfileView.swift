@@ -64,7 +64,7 @@ public struct ProfileView: View {
     
     private var backgroundGradient: some View {
         ZStack {
-            Color.black
+            DesignSystem.Colors.backgroundPrimary
             
             // Archetype-specific gradient
             LinearGradient(
@@ -126,7 +126,7 @@ struct DreamArchetypeView: View {
             // Dream Streak
             Text("15 nights of dreams")
                 .font(.custom("Avenir-Medium", size: 16))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(DesignSystem.Colors.textTertiary)
             
             // Dream Pattern Chart
             DreamPatternChart()
@@ -147,8 +147,8 @@ struct DreamPatternChart: View {
             ForEach(0..<days, id: \.self) { day in
                 Circle()
                     .fill(dreamData.indices.contains(day) && dreamData[day] 
-                        ? Color.white 
-                        : Color.white.opacity(0.2))
+                        ? DesignSystem.Colors.textPrimary 
+                        : DesignSystem.Colors.textPrimary.opacity(0.2))
                     .frame(width: 8, height: 8)
             }
         }
@@ -173,7 +173,7 @@ struct DreamInsightsCard: View {
             
             Text(message)
                 .font(.custom("Avenir-Book", size: 16))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(DesignSystem.Colors.textSecondary)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
             
@@ -181,7 +181,7 @@ struct DreamInsightsCard: View {
                 HStack(spacing: 12) {
                     Text("Recent Symbols:")
                         .font(.custom("Avenir-Medium", size: 14))
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(DesignSystem.Colors.textQuaternary)
                     
                     ForEach(recentSymbols, id: \.self) { symbol in
                         Text(symbol)
@@ -194,10 +194,10 @@ struct DreamInsightsCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(Color.white.opacity(0.1))
-                .background(
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
                     RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        .stroke(DesignSystem.Colors.cardBorder, lineWidth: 1)
                 )
         )
     }
@@ -255,19 +255,19 @@ struct DreamStatisticsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Dream Themes")
                             .font(.custom("Avenir-Medium", size: 16))
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(DesignSystem.Colors.textTertiary)
                         
                         ForEach(statistics.topThemes) { theme in
                             HStack {
                                 Text(theme.name)
                                     .font(.custom("Avenir-Book", size: 14))
-                                    .foregroundColor(.white.opacity(0.6))
+                                    .foregroundColor(DesignSystem.Colors.textQuaternary)
                                 
                                 Spacer()
                                 
                                 Text("\(theme.percentage)%")
                                     .font(.custom("Avenir-Medium", size: 14))
-                                    .foregroundColor(.white.opacity(0.8))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
                             }
                         }
                     }
@@ -276,7 +276,7 @@ struct DreamStatisticsView: View {
             .padding(24)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.white.opacity(0.1))
+                    .fill(DesignSystem.Colors.cardBackground)
             )
         }
     }
@@ -290,7 +290,7 @@ struct StatRow: View {
         HStack {
             Text(label)
                 .font(.custom("Avenir-Book", size: 16))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(DesignSystem.Colors.textTertiary)
             
             Spacer()
             

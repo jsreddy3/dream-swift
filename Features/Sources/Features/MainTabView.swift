@@ -25,11 +25,7 @@ public struct MainTabView: View {
     }
     
     public var body: some View {
-        ZStack {
-            // Force the background we want
-            Color.clear
-            
-            TabView(selection: $selectedTab) {
+        TabView(selection: $selectedTab) {
             // Profile Tab
             ProfileView(store: store)
                 .tabItem {
@@ -56,15 +52,19 @@ public struct MainTabView: View {
         .background(Color.clear)
         .tint(DesignSystem.Colors.ember)
         .onAppear {
+            // Make TabView background transparent
+            UITabBar.appearance().isTranslucent = true
+            UITabBar.appearance().backgroundImage = UIImage()
+            UITabBar.appearance().shadowImage = UIImage()
+            UITabBar.appearance().backgroundColor = .clear
             // Customize tab bar appearance
             let appearance = UITabBarAppearance()
             appearance.configureWithTransparentBackground()
-            appearance.backgroundColor = UIColor.black.withAlphaComponent(0.7)
+            appearance.backgroundColor = UIColor(DesignSystem.Colors.backgroundPrimary.opacity(0.7))
             
             // Set the appearance for all states
             UITabBar.appearance().standardAppearance = appearance
             UITabBar.appearance().scrollEdgeAppearance = appearance
-        }
         }
     }
 }

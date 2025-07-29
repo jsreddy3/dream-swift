@@ -165,7 +165,7 @@ public struct RootView: View {                      // ← public
                     .opacity(auth.isAuthenticating ? 0 : 1)   // ← hide button
 
                 if auth.isAuthenticating {
-                    Color.black.opacity(0.2).ignoresSafeArea() // dim background
+                    DesignSystem.Colors.overlayDim.ignoresSafeArea() // dim background
                     ProgressView("Signing in…")
                         .padding()
                         .background(.thinMaterial)
@@ -176,7 +176,7 @@ public struct RootView: View {                      // ← public
             // Show loading while determining onboarding status
             ZStack {
                 // Background - matching profile page style
-                Color.black.ignoresSafeArea()
+                DesignSystem.Colors.backgroundPrimary.ignoresSafeArea()
                 
                 // Animated stars background (matching profile brightness)
                 StarsBackgroundView()
@@ -235,7 +235,7 @@ struct SignInView: View {
     var body: some View {
         ZStack {
             // Background - matching profile page style
-            Color.black.ignoresSafeArea()
+            DesignSystem.Colors.backgroundPrimary.ignoresSafeArea()
             
             // Gradient overlay (matching profile page brightness)
             LinearGradient(
@@ -278,7 +278,7 @@ struct SignInView: View {
                         
                         Text("Record your dreams the moment you wake,\nand discover their hidden meanings")
                             .font(.custom("Avenir-Book", size: 18))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
                             .multilineTextAlignment(.center)
                             .lineSpacing(4)
                     }
@@ -344,7 +344,7 @@ struct OnboardingPlaceholderView: View {
     var body: some View {
         ZStack {
             // Background - matching profile page style
-            Color.black.ignoresSafeArea()
+            DesignSystem.Colors.backgroundPrimary.ignoresSafeArea()
             
             // Gradient overlay (welcoming and dreamlike)
             LinearGradient(
@@ -403,7 +403,7 @@ struct OnboardingPlaceholderView: View {
                 HStack(spacing: 8) {
                     ForEach(0..<totalPages, id: \.self) { index in
                         Circle()
-                            .fill(index == currentPage ? DesignSystem.Colors.ember : Color.white.opacity(0.3))
+                            .fill(index == currentPage ? DesignSystem.Colors.ember : DesignSystem.Colors.textPrimary.opacity(0.3))
                             .frame(width: 8, height: 8)
                             .animation(.easeInOut(duration: 0.3), value: currentPage)
                     }

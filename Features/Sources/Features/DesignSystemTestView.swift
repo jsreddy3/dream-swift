@@ -26,11 +26,17 @@ public struct DesignSystemTestView: View {
                 
                 // Component Examples
                 componentSection
+                
+                // Gradient Examples
+                gradientSection
+                
+                // Glass Morphism Examples
+                glassMorphismSection
             }
             .padding(.horizontal, DesignSystem.Spacing.screenHorizontalPadding)
             .padding(.bottom, DesignSystem.Spacing.xxxHuge)
         }
-        .background(Color.black)
+        .background(DreamBackground())
     }
     
     private var colorSection: some View {
@@ -135,6 +141,103 @@ public struct DesignSystemTestView: View {
                     .foregroundColor(DesignSystem.Colors.textSecondary)
             }
             .dreamCardStyle()
+            
+            // Glass Card Examples
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.small) {
+                Text("Glass Card")
+                    .font(DesignSystem.Typography.subheadline())
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Text("With consistent glass morphism effect")
+                    .font(DesignSystem.Typography.body())
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+            }
+            .padding(DesignSystem.Spacing.cardPadding)
+            .glassCard()
+            .dreamShadow()
+        }
+    }
+    
+    private var gradientSection: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.large) {
+            Text("Gradients")
+                .font(DesignSystem.Typography.headline())
+                .foregroundColor(DesignSystem.Colors.textPrimary)
+            
+            // Dream Gradient
+            VStack {
+                Text("Dream Gradient")
+                    .font(DesignSystem.Typography.bodyMedium())
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 100)
+            .background(DesignSystem.Gradients.dreamGradient)
+            .cornerRadius(DesignSystem.CornerRadius.medium)
+            
+            // Ember Gradient
+            VStack {
+                Text("Ember Gradient")
+                    .font(DesignSystem.Typography.bodyMedium())
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 100)
+            .background(DesignSystem.Gradients.emberGradient)
+            .cornerRadius(DesignSystem.CornerRadius.medium)
+            
+            // Radial Gradients
+            HStack(spacing: DesignSystem.Spacing.medium) {
+                VStack {
+                    Circle()
+                        .fill(DesignSystem.Gradients.emberGlow)
+                        .frame(width: 120, height: 120)
+                    Text("Ember Glow")
+                        .font(DesignSystem.Typography.caption())
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+                
+                VStack {
+                    Circle()
+                        .fill(DesignSystem.Gradients.darkOverlay)
+                        .frame(width: 120, height: 120)
+                    Text("Dark Overlay")
+                        .font(DesignSystem.Typography.caption())
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+            }
+        }
+    }
+    
+    private var glassMorphismSection: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.large) {
+            Text("Glass Morphism & Shadows")
+                .font(DesignSystem.Typography.headline())
+                .foregroundColor(DesignSystem.Colors.textPrimary)
+            
+            // Elevation examples
+            VStack(spacing: DesignSystem.Spacing.large) {
+                Text("Elevation 1")
+                    .font(DesignSystem.Typography.bodyMedium())
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .padding()
+                    .glassCard()
+                    .dreamShadow(DesignSystem.Shadow.elevation1)
+                
+                Text("Elevation 2")
+                    .font(DesignSystem.Typography.bodyMedium())
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .padding()
+                    .glassCard()
+                    .dreamShadow(DesignSystem.Shadow.elevation2)
+                
+                Text("Elevation 3")
+                    .font(DesignSystem.Typography.bodyMedium())
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .padding()
+                    .glassCard()
+                    .dreamShadow(DesignSystem.Shadow.elevation3)
+            }
         }
     }
 }

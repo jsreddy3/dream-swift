@@ -23,25 +23,8 @@ struct DreamLibraryView: View {
 
     var body: some View {
         ZStack {
-            // Much lighter base - almost grey
-            Color(white: 0.15).ignoresSafeArea()
-            
-            // Very bright gradient overlay
-            LinearGradient(
-                colors: [
-                    DesignSystem.Colors.ember.opacity(0.6),
-                    Color.purple.opacity(0.3),
-                    Color.pink.opacity(0.2)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-            
-            // Very bright stars
-            StarsBackgroundView()
-                .opacity(1.0)
-                .ignoresSafeArea()
+            // Use the new unified dream background
+            DreamBackground()
             
             Group {
                 if vm.dreams.isEmpty {
@@ -78,28 +61,54 @@ struct DreamLibraryView: View {
     private var dreamList: some View {
         let sectioned = groupDreamsByDate(vm.dreams)
         
-        return List {
-            ForEach(sectioned.keys.sorted(by: >), id: \.self) { key in
-                if let dreamGroup = sectioned[key] {
-                    Section(header: Text(key).foregroundColor(DesignSystem.Colors.ember)) {
-                        ForEach(dreamGroup) { dream in
-                            NavigationLink(value: dream) {
-                                row(for: dream)
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
-                                    Task { await vm.deleteDream(dream.id) }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
+        return ScrollView {
+            LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
+                ForEach(sectioned.keys.sorted(by: >), id: \.self) { key in
+                    if let dreamGroup = sectioned[key] {
+                        Section {
+                            ForEach(dreamGroup) { dream in
+                                NavigationLink(value: dream) {
+                                    DreamCardView(dream: dream)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 8)
+                                .padding(.top, dream.id == dreamGroup.first?.id ? 8 : 0)
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        Task { await vm.deleteDream(dream.id) }
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
                                 }
                             }
+                        } header: {
+                            HStack {
+                                Text(key)
+                                    .font(DesignSystem.Typography.subheadline())
+                                    .foregroundColor(DesignSystem.Colors.ember)
+                                    .textCase(.none)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.top, 20)
+                            .padding(.bottom, 12)
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        Color.black.opacity(0.3),
+                                        Color.black.opacity(0.2)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
                         }
                     }
                 }
             }
         }
-        .scrollContentBackground(.hidden)
-        .listStyle(.plain)
     }
     
     /// Groups dreams by relevant date descriptions - Today, Yesterday, weekdays, or date
@@ -126,18 +135,6 @@ struct DreamLibraryView: View {
                 return formatter.string(from: date)
             }
         }
-    }
-    
-    // MARK: Row -----------------------------------------------------------
-
-    // MARK: Dream Row ------------------------------------------------------
-
-    @ViewBuilder
-    private func row(for dream: Dream) -> some View {
-        DreamCardView(dream: dream)
-            .listRowSeparator(.hidden)              // hide default divider
-            .listRowInsets(.init())                 // edge-to-edge card
-            .listRowBackground(Color.clear)         // transparent list bg
     }
 
     /// A rounded card-style representation of a dream.
@@ -170,15 +167,8 @@ struct DreamLibraryView: View {
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(DesignSystem.Colors.cardBackground)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(DesignSystem.Colors.cardBorder, lineWidth: 1)
-                    )
-            )
-            .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
+            .glassCard(cornerRadius: DesignSystem.CornerRadius.medium)
+            .dreamShadow()
         }
         
         // MARK: Helpers
