@@ -6,12 +6,7 @@ import DomainLogic             // for CaptureViewModel
 import CoreModels              // for shared types
 import Configuration           // for Config.forceOnboardingForTesting
 
-// MARK: - Color Palette
-private extension Color {
-    static let campfireBg   = Color(red: 33/255, green: 24/255, blue: 21/255)
-    static let campfireCard = Color(red: 54/255, green: 37/255, blue: 32/255)
-    static let ember        = Color(red: 255/255, green: 145/255, blue: 0/255)
-}
+// MARK: - Color Palette (Using Design System)
 
 @MainActor                     // safe because it only talks to SwiftUI
 public final class AuthBridge: ObservableObject {
@@ -180,14 +175,39 @@ public struct RootView: View {                      // ← public
         } else if auth.isCheckingOnboarding {
             // Show loading while determining onboarding status
             ZStack {
+                // Background - matching profile page style
                 Color.black.ignoresSafeArea()
+                
+                // Animated stars background (matching profile brightness)
+                StarsBackgroundView()
+                    .opacity(0.5)
+                    .ignoresSafeArea()
+                
                 VStack(spacing: 24) {
-                    LoopingVideoView(named: "campfire_fullrange")
+                    // Ember circle with glow
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    DesignSystem.Colors.ember,
+                                    DesignSystem.Colors.ember.opacity(0.3)
+                                ],
+                                center: .center,
+                                startRadius: 20,
+                                endRadius: 60
+                            )
+                        )
                         .frame(width: 120, height: 120)
-                        .cornerRadius(20)
-                        .opacity(0.8)
+                        .overlay(
+                            Image(systemName: "moon.stars.fill")
+                                .font(.system(size: 48))
+                                .foregroundColor(.white)
+                        )
+                        .shadow(color: DesignSystem.Colors.ember.opacity(0.6), radius: 30)
+                    
                     ProgressView("Loading…")
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .foregroundColor(.white)
                 }
             }
         } else if auth.needsOnboarding {
@@ -214,20 +234,24 @@ struct SignInView: View {
     
     var body: some View {
         ZStack {
-            // Background
+            // Background - matching profile page style
             Color.black.ignoresSafeArea()
             
-            // Campfire video background
-            GeometryReader { geometry in
-                LoopingVideoView(named: "campfire_fullrange")
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .clipped()
-                    .opacity(0.6)
-            }
+            // Gradient overlay (matching profile page brightness)
+            LinearGradient(
+                colors: [
+                    DesignSystem.Colors.ember.opacity(0.3),
+                    DesignSystem.Colors.ember.opacity(0.1)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
             .ignoresSafeArea()
             
-            // Dark overlay for readability
-            Color.black.opacity(0.4).ignoresSafeArea()
+            // Animated stars background (brighter like profile)
+            StarsBackgroundView()
+                .opacity(0.5)
+                .ignoresSafeArea()
             
             VStack(spacing: 32) {
                 Spacer()
@@ -238,7 +262,7 @@ struct SignInView: View {
                     VStack(spacing: 8) {
                         Image(systemName: "moon.stars.fill")
                             .font(.system(size: 48))
-                            .foregroundColor(Color.ember)
+                            .foregroundColor(DesignSystem.Colors.ember)
                         
                         Text("Dream")
                             .font(.custom("Avenir-Heavy", size: 42))
@@ -268,8 +292,8 @@ struct SignInView: View {
                         .padding(.horizontal, 24)
                     
                     Text("Your dreams are private and secure")
-                        .font(.custom("Avenir-Book", size: 14))
-                        .foregroundColor(.white.opacity(0.6))
+                        .font(DesignSystem.Typography.caption())
+                        .foregroundColor(DesignSystem.Colors.textQuaternary)
                 }
                 .padding(.bottom, 60)
             }
@@ -302,7 +326,7 @@ struct GoogleSignInButton: View {
             .frame(height: 54)
             .background(
                 RoundedRectangle(cornerRadius: 27)
-                    .fill(Color.ember)
+                    .fill(DesignSystem.Colors.ember)
             )
         }
         .buttonStyle(.plain)
@@ -319,17 +343,24 @@ struct OnboardingPlaceholderView: View {
     
     var body: some View {
         ZStack {
-            // Persistent campfire background
-            GeometryReader { geometry in
-                LoopingVideoView(named: "campfire_fullrange")
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .clipped()
-                    .opacity(0.4)
-            }
+            // Background - matching profile page style
+            Color.black.ignoresSafeArea()
+            
+            // Gradient overlay (welcoming and dreamlike)
+            LinearGradient(
+                colors: [
+                    DesignSystem.Colors.ember.opacity(0.25),
+                    DesignSystem.Colors.ember.opacity(0.1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
             .ignoresSafeArea()
             
-            // Dark overlay for readability
-            Color.black.opacity(0.5).ignoresSafeArea()
+            // Animated stars background (brighter)
+            StarsBackgroundView()
+                .opacity(0.5)
+                .ignoresSafeArea()
             
             VStack {
                 // Skip button + Debug info
@@ -372,7 +403,7 @@ struct OnboardingPlaceholderView: View {
                 HStack(spacing: 8) {
                     ForEach(0..<totalPages, id: \.self) { index in
                         Circle()
-                            .fill(index == currentPage ? Color.ember : Color.white.opacity(0.3))
+                            .fill(index == currentPage ? DesignSystem.Colors.ember : Color.white.opacity(0.3))
                             .frame(width: 8, height: 8)
                             .animation(.easeInOut(duration: 0.3), value: currentPage)
                     }
@@ -499,7 +530,7 @@ struct OnboardingScreen1: View {
         VStack(spacing: 24) {
             Image(systemName: "moon.stars.fill")
                 .font(.system(size: 64))
-                .foregroundColor(Color.ember)
+                .foregroundColor(DesignSystem.Colors.ember)
             
             VStack(spacing: 16) {
                 Text("Dreams hold latent magic")
@@ -522,7 +553,7 @@ struct OnboardingScreen2: View {
         VStack(spacing: 24) {
             Image(systemName: "brain.head.profile")
                 .font(.system(size: 64))
-                .foregroundColor(Color.ember)
+                .foregroundColor(DesignSystem.Colors.ember)
             
             VStack(spacing: 16) {
                 Text("Your brain dreams for 2 hours every night")
@@ -532,7 +563,7 @@ struct OnboardingScreen2: View {
                 
                 Text("Studies show people who record their dreams report 23% better self-awareness and emotional processing.")
                     .font(.custom("Avenir-Medium", size: 18))
-                    .foregroundColor(Color.ember.opacity(0.9))
+                    .foregroundColor(DesignSystem.Colors.ember.opacity(0.9))
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
                 
@@ -551,7 +582,7 @@ struct OnboardingScreen3: View {
         VStack(spacing: 24) {
             Image(systemName: "heart.text.square")
                 .font(.system(size: 64))
-                .foregroundColor(Color.ember)
+                .foregroundColor(DesignSystem.Colors.ember)
             
             VStack(spacing: 16) {
                 Text("Dreams are stories only your brain can tell")
@@ -561,7 +592,7 @@ struct OnboardingScreen3: View {
                 
                 Text("82% of couples who share dreams report feeling more emotionally connected.")
                     .font(.custom("Avenir-Medium", size: 18))
-                    .foregroundColor(Color.ember.opacity(0.9))
+                    .foregroundColor(DesignSystem.Colors.ember.opacity(0.9))
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
                 
@@ -582,7 +613,7 @@ struct OnboardingScreen4: View {
         VStack(spacing: 32) {
             Image(systemName: "star.circle")
                 .font(.system(size: 64))
-                .foregroundColor(Color.ember)
+                .foregroundColor(DesignSystem.Colors.ember)
             
             VStack(spacing: 16) {
                 Text("Ready to unlock your inner wisdom?")
@@ -606,10 +637,11 @@ struct OnboardingScreen4: View {
             .frame(height: 54)
             .background(
                 RoundedRectangle(cornerRadius: 27)
-                    .fill(Color.ember)
+                    .fill(DesignSystem.Colors.ember)
             )
             .padding(.horizontal, 24)
             .padding(.top, 16)
         }
     }
 }
+

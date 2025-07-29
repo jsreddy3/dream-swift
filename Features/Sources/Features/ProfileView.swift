@@ -304,7 +304,7 @@ struct StatRow: View {
 // MARK: - Helper Types
 
 struct ScrollOffsetPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+    static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
     }
@@ -335,48 +335,6 @@ struct WaveShape: Shape {
     }
 }
 
-// MARK: - Stars Background
-
-struct StarsBackgroundView: View {
-    @State private var stars: [Star] = []
-    
-    var body: some View {
-        TimelineView(.animation) { timeline in
-            Canvas { context, size in
-                for star in stars {
-                    let opacity = (sin(timeline.date.timeIntervalSince1970 * star.twinkleSpeed) + 1) / 2
-                    context.fill(
-                        Path(ellipseIn: CGRect(
-                            x: star.position.x,
-                            y: star.position.y,
-                            width: star.size,
-                            height: star.size
-                        )),
-                        with: .color(.white.opacity(opacity * 0.8))
-                    )
-                }
-            }
-        }
-        .onAppear {
-            stars = (0..<100).map { _ in
-                Star(
-                    position: CGPoint(
-                        x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
-                        y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
-                    ),
-                    size: CGFloat.random(in: 1...3),
-                    twinkleSpeed: Double.random(in: 0.5...2)
-                )
-            }
-        }
-    }
-}
-
-struct Star {
-    let position: CGPoint
-    let size: CGFloat
-    let twinkleSpeed: Double
-}
 
 // MARK: - Particle System
 

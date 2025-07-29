@@ -16,14 +16,34 @@ struct DreamEntryView: View {
 
     var body: some View {
         ZStack {
+            // Background - matching profile page style
+            Color.black.ignoresSafeArea()
+            
+            // Gradient overlay (warm and welcoming)
+            LinearGradient(
+                colors: [
+                    DesignSystem.Colors.ember.opacity(0.25),
+                    DesignSystem.Colors.ember.opacity(0.1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+            
+            // Animated stars background (brighter)
+            StarsBackgroundView()
+                .opacity(0.5)
+                .ignoresSafeArea()
+            
             if let err = vm.errorMessage {
                     // ───────────── failed or timed-out ─────────────
                     VStack(spacing: 16) {
                         Image(systemName: "wifi.exclamationmark")
                             .font(.system(size: 48))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
                         Text(err)
-                            .font(.custom("Avenir-Medium", size: 18))
+                            .font(DesignSystem.Typography.subheadline())
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                         
@@ -49,18 +69,52 @@ struct DreamEntryView: View {
                 } else if vm.dream.summary == nil {
                     // ───────────── still working ─────────────
                     VStack(spacing: 24) {
-                        LoopingVideoView(named: "campfire_fullrange")
-                            .frame(width: 240, height: 240)
-                            .cornerRadius(40)
+                        // Dream interpretation orb
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    RadialGradient(
+                                        colors: [
+                                            DesignSystem.Colors.ember.opacity(0.6),
+                                            DesignSystem.Colors.ember.opacity(0.1),
+                                            Color.clear
+                                        ],
+                                        center: .center,
+                                        startRadius: 30,
+                                        endRadius: 120
+                                    )
+                                )
+                                .frame(width: 240, height: 240)
+                                .blur(radius: 15)
+                                .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: vm.statusMessage)
+                            
+                            Circle()
+                                .fill(
+                                    RadialGradient(
+                                        colors: [
+                                            Color.black.opacity(0.8),
+                                            Color.black.opacity(0.3)
+                                        ],
+                                        center: .center,
+                                        startRadius: 30,
+                                        endRadius: 100
+                                    )
+                                )
+                                .frame(width: 200, height: 200)
+                            
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 60))
+                                .foregroundColor(.white)
+                                .symbolEffect(.pulse, value: vm.statusMessage)
+                        }
                         Text(vm.statusMessage ?? "Interpreting your dream…")
-                            .font(.custom("Avenir-Medium", size: 20))
-                            .foregroundColor(.secondary)
+                            .font(DesignSystem.Typography.headline())
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                             .animation(.easeInOut(duration: 0.3), value: vm.statusMessage)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(.systemBackground))
                 } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
@@ -68,20 +122,21 @@ struct DreamEntryView: View {
                         // Title
                         if vm.isEditMode {
                             TextField("Dream Title", text: $vm.editedTitle, axis: .vertical)
-                                .font(.custom("Avenir-Heavy", size: 32))
+                                .font(DesignSystem.Typography.title1())
                                 .textFieldStyle(.roundedBorder)
                                 .lineLimit(nil)
                                 .padding(.top, 8)
                         } else {
                             Text(vm.dream.title)
-                                .font(.custom("Avenir-Heavy", size: 32))
+                                .font(DesignSystem.Typography.title1())
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
                                 .padding(.top, 8)
                         }
                         
                         // Date and day
                         Text(formatDate(vm.dream.created_at))
-                            .font(.custom("Avenir-Medium", size: 16))
-                            .foregroundColor(Color(red: 255/255, green: 145/255, blue: 0/255))
+                            .font(DesignSystem.Typography.bodyMedium())
+                            .foregroundColor(DesignSystem.Colors.ember)
 
                         // Interpret button (only if analysis missing)
                         if vm.dream.analysis == nil {
@@ -89,7 +144,7 @@ struct DreamEntryView: View {
                                 Task { await vm.interpret() }
                             } label: {
                                 Label("Interpret", systemImage: "sparkles")
-                                    .font(.custom("Avenir-Medium", size: 16))
+                                    .font(DesignSystem.Typography.bodyMedium())
                                     .padding(.horizontal, 20)
                                     .padding(.vertical, 10)
                                     .background(Capsule().fill(Color.accentColor))
@@ -102,20 +157,21 @@ struct DreamEntryView: View {
                         if vm.isEditMode {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Dream Summary")
-                                    .font(.custom("Avenir-Medium", size: 18))
-                                    .foregroundColor(.secondary)
+                                    .font(DesignSystem.Typography.subheadline())
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
                                 
                                 TextEditor(text: $vm.editedSummary)
-                                    .font(.custom("Avenir-Book", size: 18))
+                                    .font(DesignSystem.Typography.body())
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
                                     .frame(minHeight: 120)
                                     .padding(8)
-                                    .background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGray6)))
+                                    .background(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium).fill(DesignSystem.Colors.cardBackground))
                             }
                         } else {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Dream Summary")
-                                    .font(.custom("Avenir-Medium", size: 18))
-                                    .foregroundColor(.secondary)
+                                    .font(DesignSystem.Typography.subheadline())
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
                                 
                                 CollapsibleText(text: vm.dream.summary!)
                             }
@@ -127,10 +183,11 @@ struct DreamEntryView: View {
                         if let analysis = vm.dream.analysis {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Interpretation")
-                                    .font(.custom("Avenir-Medium", size: 18))
-                                    .foregroundColor(.secondary)
+                                    .font(DesignSystem.Typography.subheadline())
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
                                 Text(analysis)
-                                    .font(.custom("Avenir-Book", size: 18))
+                                    .font(DesignSystem.Typography.body())
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
                             }
                         }
                     }
@@ -141,19 +198,57 @@ struct DreamEntryView: View {
             // Busy overlay (for interpretation / manual refresh)
             if vm.isBusy && vm.statusMessage != nil {
                 // Full screen loading with status messages
-                VStack(spacing: 24) {
-                    LoopingVideoView(named: "campfire_fullrange")
-                        .frame(width: 240, height: 240)
-                        .cornerRadius(40)
-                    Text(vm.statusMessage ?? "Interpreting your dream…")
-                        .font(.custom("Avenir-Medium", size: 20))
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                        .animation(.easeInOut(duration: 0.3), value: vm.statusMessage)
+                ZStack {
+                    Color.black.opacity(0.8).ignoresSafeArea()
+                    
+                    VStack(spacing: 24) {
+                        // Dream interpretation orb
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    RadialGradient(
+                                        colors: [
+                                            DesignSystem.Colors.ember.opacity(0.6),
+                                            DesignSystem.Colors.ember.opacity(0.1),
+                                            Color.clear
+                                        ],
+                                        center: .center,
+                                        startRadius: 30,
+                                        endRadius: 120
+                                    )
+                                )
+                                .frame(width: 240, height: 240)
+                                .blur(radius: 15)
+                                .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: vm.statusMessage)
+                            
+                            Circle()
+                                .fill(
+                                    RadialGradient(
+                                        colors: [
+                                            Color.black.opacity(0.8),
+                                            Color.black.opacity(0.3)
+                                        ],
+                                        center: .center,
+                                        startRadius: 30,
+                                        endRadius: 100
+                                    )
+                                )
+                                .frame(width: 200, height: 200)
+                            
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 60))
+                                .foregroundColor(.white)
+                                .symbolEffect(.pulse, value: vm.statusMessage)
+                        }
+                        
+                        Text(vm.statusMessage ?? "Interpreting your dream…")
+                            .font(DesignSystem.Typography.headline())
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                            .animation(.easeInOut(duration: 0.3), value: vm.statusMessage)
+                    }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(.systemBackground))
             } else if vm.isBusy {
                 // Simple progress overlay for other operations
                 Color.black.opacity(0.25).ignoresSafeArea()
@@ -172,6 +267,7 @@ struct DreamEntryView: View {
     }
 }
 
+
 // MARK: ‑ CollapsibleText ------------------------------------------------
 
 private struct CollapsibleText: View {
@@ -182,7 +278,8 @@ private struct CollapsibleText: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(text)
-                .font(.custom("Avenir-Book", size: 18))
+                .font(DesignSystem.Typography.body())
+                .foregroundColor(DesignSystem.Colors.textPrimary)
                 .lineLimit(expanded ? nil : lineLimit)
                 .animation(.easeInOut, value: expanded)
 
@@ -190,12 +287,11 @@ private struct CollapsibleText: View {
                 Button(expanded ? "Show Less" : "Show More") {
                     withAnimation { expanded.toggle() }
                 }
-                .font(.custom("Avenir-Medium", size: 14))
-                .foregroundColor(.accentColor)
+                .font(DesignSystem.Typography.captionMedium())
+                .foregroundColor(DesignSystem.Colors.ember)
             }
         }
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGray6)))
+        .dreamCardStyle()
     }
 }
 

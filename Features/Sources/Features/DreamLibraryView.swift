@@ -10,13 +10,6 @@ import CoreModels
 import Infrastructure
 import DomainLogic
 
-// MARK: - Color Palette --------------------------------------------------
-private extension Color {
-    static let campfireBg   = Color(red: 33/255, green: 24/255, blue: 21/255)
-    static let campfireCard = Color(red: 54/255, green: 37/255, blue: 32/255)
-    static let ember        = Color(red: 255/255, green: 145/255, blue: 0/255)
-}
-
 // MARK: - View -----------------------------------------------------------
 
 struct DreamLibraryView: View {
@@ -29,14 +22,36 @@ struct DreamLibraryView: View {
     }
 
     var body: some View {
-        Group {
-            if vm.dreams.isEmpty {
-                Text("No dreams recorded yet")
-                    .font(.custom("Avenir-Medium", size: 18))
-                    .foregroundColor(.white.opacity(0.7))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                dreamList
+        ZStack {
+            // Much lighter base - almost grey
+            Color(white: 0.15).ignoresSafeArea()
+            
+            // Very bright gradient overlay
+            LinearGradient(
+                colors: [
+                    DesignSystem.Colors.ember.opacity(0.6),
+                    Color.purple.opacity(0.3),
+                    Color.pink.opacity(0.2)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            
+            // Very bright stars
+            StarsBackgroundView()
+                .opacity(1.0)
+                .ignoresSafeArea()
+            
+            Group {
+                if vm.dreams.isEmpty {
+                    Text("No dreams recorded yet")
+                        .font(DesignSystem.Typography.subheadline())
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    dreamList
+                }
             }
         }
         .navigationTitle("Dream Library")
@@ -66,7 +81,7 @@ struct DreamLibraryView: View {
         return List {
             ForEach(sectioned.keys.sorted(by: >), id: \.self) { key in
                 if let dreamGroup = sectioned[key] {
-                    Section(header: Text(key).foregroundColor(Color.ember)) {
+                    Section(header: Text(key).foregroundColor(DesignSystem.Colors.ember)) {
                         ForEach(dreamGroup) { dream in
                             NavigationLink(value: dream) {
                                 row(for: dream)
@@ -134,8 +149,8 @@ struct DreamLibraryView: View {
                 // Title + optional state icon
                 HStack(alignment: .firstTextBaseline) {
                     Text(dream.title.isEmpty ? "Untitled" : dream.title)
-                        .font(.custom("Avenir-Heavy", size: 18))
-                        .foregroundColor(.white)
+                        .font(DesignSystem.Typography.subheadline())
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
                     Spacer(minLength: 4)
                     stateIcon
                 }
@@ -143,24 +158,24 @@ struct DreamLibraryView: View {
                 // Summary ⇢ Transcript fallback
                 if let text = primaryText, !text.isEmpty {
                     Text(text)
-                        .font(.custom("Avenir-Book", size: 14))
-                        .foregroundColor(.white.opacity(0.8))
+                        .font(DesignSystem.Typography.caption())
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
                         .lineLimit(3)
                 }
                 
                 // Date footer with day
                 Text(formatDateWithDay(dream.created_at))
                     .font(.caption2)
-                    .foregroundColor(.ember)
+                    .foregroundColor(DesignSystem.Colors.ember)
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color.campfireCard)
+                    .fill(DesignSystem.Colors.cardBackground)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(Color.ember.opacity(0.25), lineWidth: 1)
+                            .stroke(DesignSystem.Colors.cardBorder, lineWidth: 1)
                     )
             )
             .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
@@ -177,11 +192,11 @@ struct DreamLibraryView: View {
             switch dream.state {
             case .completed:
                 Image(systemName: "checkmark.seal.fill")
-                    .foregroundStyle(Color.ember)
+                    .foregroundStyle(DesignSystem.Colors.ember)
                     .font(.system(size: 14, weight: .semibold))
             case .video_generated:
                 Image(systemName: "video.fill")
-                    .foregroundStyle(Color.ember)
+                    .foregroundStyle(DesignSystem.Colors.ember)
                     .font(.system(size: 14, weight: .semibold))
             default:
                 EmptyView()
@@ -199,11 +214,15 @@ struct DreamLibraryView: View {
 
     private func configureNavFont() {
         let appearance = UINavigationBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.backgroundColor = .clear
         appearance.largeTitleTextAttributes = [
-            .font: UIFont(name: "Avenir-Heavy", size: 34) as Any
+            .font: UIFont(name: "Avenir-Heavy", size: 34) as Any,
+            .foregroundColor: UIColor.white
         ]
         appearance.titleTextAttributes = [
-            .font: UIFont(name: "Avenir-Medium", size: 18) as Any
+            .font: UIFont(name: "Avenir-Medium", size: 18) as Any,
+            .foregroundColor: UIColor.white
         ]
         UINavigationBar.appearance().standardAppearance  = appearance
         UINavigationBar.appearance().scrollEdgeAppearance = appearance
@@ -218,6 +237,7 @@ extension Dream: Hashable {
 }
 
 // MARK: - Preview --------------------------------------------------------
+
 
 #if DEBUG
 #Preview {

@@ -17,10 +17,19 @@ public struct MainTabView: View {
         self._captureVM = State(initialValue: captureVM)
         self._libraryVM = State(initialValue: libraryVM)
         self.store = store
+        
+        // Force TabView background to be transparent
+        UITabBar.appearance().isTranslucent = true
+        UITabBar.appearance().backgroundImage = UIImage()
+        UITabBar.appearance().shadowImage = UIImage()
     }
     
     public var body: some View {
-        TabView(selection: $selectedTab) {
+        ZStack {
+            // Force the background we want
+            Color.clear
+            
+            TabView(selection: $selectedTab) {
             // Profile Tab
             ProfileView(store: store)
                 .tabItem {
@@ -44,16 +53,18 @@ public struct MainTabView: View {
             }
             .tag(2)
         }
-        .tint(Color(red: 255/255, green: 145/255, blue: 0/255)) // Ember color
+        .background(Color.clear)
+        .tint(DesignSystem.Colors.ember)
         .onAppear {
             // Customize tab bar appearance
             let appearance = UITabBarAppearance()
-            appearance.configureWithOpaqueBackground()
-            appearance.backgroundColor = UIColor.black.withAlphaComponent(0.9)
+            appearance.configureWithTransparentBackground()
+            appearance.backgroundColor = UIColor.black.withAlphaComponent(0.7)
             
             // Set the appearance for all states
             UITabBar.appearance().standardAppearance = appearance
             UITabBar.appearance().scrollEdgeAppearance = appearance
+        }
         }
     }
 }

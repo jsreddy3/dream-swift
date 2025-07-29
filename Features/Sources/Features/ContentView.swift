@@ -74,16 +74,80 @@ public struct ContentView: View {
     }
 
     public var body: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
+        ZStack {
+            // TEST: Bright red background to verify changes are showing
+            Color.red.opacity(0.3).ignoresSafeArea()
+            
+            // Much lighter base
+            Color(white: 0.15).ignoresSafeArea()
+            
+            // Very bright dreamy gradient
+            LinearGradient(
+                colors: [
+                    DesignSystem.Colors.ember.opacity(0.6),
+                    Color.purple.opacity(0.3),
+                    Color.pink.opacity(0.2)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            
+            // Maximum brightness stars
+            StarsBackgroundView()
+                .opacity(1.0)
+                .ignoresSafeArea()
+            
+            NavigationStack {
+                ZStack {
+                    // Force transparent background
+                    Color.clear
+                    
+                    VStack(spacing: 24) {
                 Text(label(for: vm.state))
                     .font(.custom("Avenir-Medium", size: 30))
+                    .foregroundColor(.white)
                     .padding(.top, -50)
 
-                LoopingVideoView(named: "campfire_fullrange")
-                    .frame(width: 300, height: 300)
-                    .fixedSize()
-                    .cornerRadius(50)
+                // Dream capture orb - matching profile aesthetic
+                ZStack {
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    DesignSystem.Colors.ember,
+                                    DesignSystem.Colors.ember.opacity(0.4),
+                                    Color.clear
+                                ],
+                                center: .center,
+                                startRadius: 50,
+                                endRadius: 150
+                            )
+                        )
+                        .frame(width: 300, height: 300)
+                        .blur(radius: vm.state == .recording ? 20 : 10)
+                        .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: vm.state)
+                    
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    Color.black.opacity(0.6),
+                                    Color.black.opacity(0.2)
+                                ],
+                                center: .center,
+                                startRadius: 40,
+                                endRadius: 120
+                            )
+                        )
+                        .frame(width: 240, height: 240)
+                    
+                    Image(systemName: vm.state == .recording ? "waveform" : "moon.stars.fill")
+                        .font(.system(size: 80))
+                        .foregroundColor(.white)
+                        .symbolEffect(.pulse, value: vm.state == .recording)
+                }
+                .frame(width: 300, height: 300)
                 
                 // Show mode toggle only when not recording AND (not clipped OR extending)
                 if vm.state != .recording && (vm.state != .clipped || vm.isExtending) {
@@ -203,7 +267,11 @@ public struct ContentView: View {
                     vm.state = .idle
                 }
             }
-        }
+                } // End VStack
+            } // End NavigationStack
+            .scrollContentBackground(.hidden) // Hide default background
+            .background(Color.clear)
+        } // End outer ZStack
     }
 
     // MARK: – helpers
@@ -237,6 +305,7 @@ extension View {
     }
 }
 #endif
+
 
 
 #if DEBUG                              // compiled only for the canvas / unit tests

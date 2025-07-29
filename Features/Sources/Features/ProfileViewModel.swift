@@ -148,7 +148,7 @@ public class ProfileViewModel: ObservableObject {
 
 // MARK: - Data Models
 
-public struct DreamArchetype {
+public struct DreamArchetype: Sendable {
     let id: String
     let name: String
     let symbol: String
@@ -240,7 +240,7 @@ public struct DreamArchetype {
     )
 }
 
-public struct EmotionData: Identifiable {
+public struct EmotionData: Identifiable, Sendable {
     public let id = UUID()
     let name: String
     let color: String
@@ -248,13 +248,13 @@ public struct EmotionData: Identifiable {
     let phase: Double // For wave animation offset
 }
 
-public struct DreamTheme: Identifiable {
+public struct DreamTheme: Identifiable, Sendable {
     public let id: UUID
     let name: String
     let percentage: Int
 }
 
-public struct DreamStatistics {
+public struct DreamStatistics: Sendable {
     let totalDreams: Int
     let longestDream: String
     let topThemes: [DreamTheme]
