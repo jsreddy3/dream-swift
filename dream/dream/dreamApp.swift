@@ -37,7 +37,7 @@ struct DreamApp: App {
     // `@Observable` class → store with @State
     @State private var captureVM: CaptureViewModel
     @State private var libraryVM: DreamLibraryViewModel
-    @StateObject private var authBridge = AuthBridge(sharedAuth)   // ← no 'self'
+    @State private var authBridge: AuthBridge
 
     
     // ──────────────────────────────────────────────────────────────
@@ -64,6 +64,9 @@ struct DreamApp: App {
         
         let libVM = DreamLibraryViewModel(store: s)
         _libraryVM = State(wrappedValue: libVM)
+        
+        let authBr = AuthBridge(sharedAuth, store: s)
+        _authBridge = State(wrappedValue: authBr)
     }
 
         // MARK: UI scene -----------------------------------------------------
@@ -77,8 +80,6 @@ struct DreamApp: App {
                         appDelegate.configure(store: store)
                         Task { await store.drain() }                   // <─ run once, right now
                         Task { await libraryVM.refresh() }             // <─ preload library data
-
-
                     }
             }
             .onChange(of: phase) { oldPhase, newPhase in

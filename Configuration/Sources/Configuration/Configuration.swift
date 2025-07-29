@@ -18,4 +18,10 @@ public enum Config {
     
     /// JWT lifetime on the server, in hours (keep in sync with backend settings)
     public static let jwtExpiryHours: Int = 12
+    
+    // MARK: - Feature Flags
+    
+    /// Force onboarding to show for all users (for testing purposes)
+    /// Set to false for production to respect user completion state
+    public static let forceOnboardingForTesting: Bool = true
 }
