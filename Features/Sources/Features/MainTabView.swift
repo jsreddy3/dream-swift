@@ -1,0 +1,59 @@
+import SwiftUI
+import Infrastructure
+import DomainLogic
+import CoreModels
+
+// MARK: - Main Tab View
+
+public struct MainTabView: View {
+    @State private var selectedTab = 0
+    @State private var captureVM: CaptureViewModel
+    @State private var libraryVM: DreamLibraryViewModel
+    @EnvironmentObject private var auth: AuthBridge
+    
+    private let store: DreamStore
+    
+    public init(captureVM: CaptureViewModel, libraryVM: DreamLibraryViewModel, store: DreamStore) {
+        self._captureVM = State(initialValue: captureVM)
+        self._libraryVM = State(initialValue: libraryVM)
+        self.store = store
+    }
+    
+    public var body: some View {
+        TabView(selection: $selectedTab) {
+            // Profile Tab
+            ProfileView(store: store)
+                .tabItem {
+                    Label("Profile", systemImage: "moon.stars.fill")
+                }
+                .tag(0)
+            
+            // Record Tab
+            ContentView(viewModel: captureVM, libraryViewModel: libraryVM)
+                .tabItem {
+                    Label("Record", systemImage: "waveform.circle.fill")
+                }
+                .tag(1)
+            
+            // Library Tab
+            NavigationStack {
+                DreamLibraryView(viewModel: libraryVM)
+            }
+            .tabItem {
+                Label("Library", systemImage: "books.vertical.fill")
+            }
+            .tag(2)
+        }
+        .tint(Color(red: 255/255, green: 145/255, blue: 0/255)) // Ember color
+        .onAppear {
+            // Customize tab bar appearance
+            let appearance = UITabBarAppearance()
+            appearance.configureWithOpaqueBackground()
+            appearance.backgroundColor = UIColor.black.withAlphaComponent(0.9)
+            
+            // Set the appearance for all states
+            UITabBar.appearance().standardAppearance = appearance
+            UITabBar.appearance().scrollEdgeAppearance = appearance
+        }
+    }
+}

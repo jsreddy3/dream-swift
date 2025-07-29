@@ -16,7 +16,7 @@ private extension Color {
 @MainActor                     // safe because it only talks to SwiftUI
 public final class AuthBridge: ObservableObject {
     private let backend: AuthStore
-    private let store: SyncingDreamStore?
+    let store: SyncingDreamStore?  // Made internal for access
     @Published var isAuthenticating = false   // ⟵ add this
     @Published var jwt: String?          // UI can react to this
     @Published var needsOnboarding = false    // ⟵ onboarding state
@@ -75,6 +75,7 @@ public final class AuthBridge: ObservableObject {
             print("🔍 [ONBOARDING DEBUG] Feature flag forceOnboardingForTesting: \(forceOnboarding)")
             print("🔍 [ONBOARDING DEBUG] UserDefaults hasCompletedOnboarding: \(hasCompleted)")
             
+            // Without store, assume new user needs onboarding unless they've explicitly completed it
             let shouldShow = forceOnboarding || !hasCompleted
             await MainActor.run {
                 needsOnboarding = shouldShow
@@ -99,8 +100,8 @@ public final class AuthBridge: ObservableObject {
             let forceOnboarding = Config.forceOnboardingForTesting
             print("🔍 [ONBOARDING DEBUG] Feature flag forceOnboardingForTesting: \(forceOnboarding)")
             
-            // Normal logic: show onboarding if no dreams AND user hasn't explicitly completed
-            let normalLogicShouldShow = dreams.isEmpty && !keyExists
+            // Normal logic: show onboarding if no dreams AND user hasn't completed onboarding
+            let normalLogicShouldShow = dreams.isEmpty && !hasCompletedOnboarding
             
             // Final decision: force flag OR normal logic
             let shouldShowOnboarding = forceOnboarding || normalLogicShouldShow
@@ -192,8 +193,18 @@ public struct RootView: View {                      // ← public
         } else if auth.needsOnboarding {
             OnboardingPlaceholderView(auth: auth)
         } else {
-            ContentView(viewModel: captureVM, libraryViewModel: libraryVM)
+            if let store = auth.store {
+                MainTabView(
+                    captureVM: captureVM, 
+                    libraryVM: libraryVM,
+                    store: store
+                )
                 .environmentObject(auth)
+            } else {
+                // Fallback if no store available
+                ContentView(viewModel: captureVM, libraryViewModel: libraryVM)
+                    .environmentObject(auth)
+            }
         }
     }
 }
@@ -321,9 +332,25 @@ struct OnboardingPlaceholderView: View {
             Color.black.opacity(0.5).ignoresSafeArea()
             
             VStack {
-                // Skip button
+                // Skip button + Debug info
                 HStack {
+                    // Debug info (remove for production)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("🔍 DEBUG")
+                            .font(.caption)
+                            .foregroundColor(.yellow)
+                        Text("Flag: \(Config.forceOnboardingForTesting ? "ON" : "OFF")")
+                            .font(.caption2)
+                            .foregroundColor(.yellow)
+                        Text("Page: \(currentPage + 1)/\(totalPages)")
+                            .font(.caption2)
+                            .foregroundColor(.yellow)
+                    }
+                    .padding(.leading, 24)
+                    .padding(.top, 20)
+                    
                     Spacer()
+                    
                     Button("Skip") {
                         auth.completeOnboarding()
                     }
