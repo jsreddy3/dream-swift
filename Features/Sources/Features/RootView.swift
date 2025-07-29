@@ -3,6 +3,14 @@
 import SwiftUI
 import Infrastructure          // for AuthStore
 import DomainLogic             // for CaptureViewModel
+import CoreModels              // for shared types
+
+// MARK: - Color Palette
+private extension Color {
+    static let campfireBg   = Color(red: 33/255, green: 24/255, blue: 21/255)
+    static let campfireCard = Color(red: 54/255, green: 37/255, blue: 32/255)
+    static let ember        = Color(red: 255/255, green: 145/255, blue: 0/255)
+}
 
 @MainActor                     // safe because it only talks to SwiftUI
 public final class AuthBridge: ObservableObject {
@@ -71,27 +79,102 @@ public struct RootView: View {                      // ← public
     }
 }
 
-struct SignInView: UIViewControllerRepresentable {
+struct SignInView: View {
     @ObservedObject var auth: AuthBridge
-
-    func makeUIViewController(context: Context) -> UIViewController {
-        let host = UIViewController()
-        host.view.backgroundColor = .systemBackground
-
-        // a single button centred on the screen
-        let button = UIButton(type: .system, primaryAction:
-            UIAction(title: "Sign in with Google") { _ in
-                Task { await auth.signIn(presenting: host) }
-            })
-        button.titleLabel?.font = .systemFont(ofSize: 22, weight: .medium)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        host.view.addSubview(button)
-        NSLayoutConstraint.activate([
-            button.centerXAnchor.constraint(equalTo: host.view.centerXAnchor),
-            button.centerYAnchor.constraint(equalTo: host.view.centerYAnchor)
-        ])
-        return host
+    
+    var body: some View {
+        ZStack {
+            // Background
+            Color.black.ignoresSafeArea()
+            
+            // Campfire video background
+            GeometryReader { geometry in
+                LoopingVideoView(named: "campfire_fullrange")
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
+                    .opacity(0.6)
+            }
+            .ignoresSafeArea()
+            
+            // Dark overlay for readability
+            Color.black.opacity(0.4).ignoresSafeArea()
+            
+            VStack(spacing: 32) {
+                Spacer()
+                
+                // Welcome content
+                VStack(spacing: 24) {
+                    // App title/logo area
+                    VStack(spacing: 8) {
+                        Image(systemName: "moon.stars.fill")
+                            .font(.system(size: 48))
+                            .foregroundColor(Color.ember)
+                        
+                        Text("Dream")
+                            .font(.custom("Avenir-Heavy", size: 42))
+                            .foregroundColor(.white)
+                    }
+                    
+                    // Welcome message
+                    VStack(spacing: 16) {
+                        Text("Capture the wisdom of your sleep")
+                            .font(.custom("Avenir-Medium", size: 24))
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                        
+                        Text("Record your dreams the moment you wake,\nand discover their hidden meanings")
+                            .font(.custom("Avenir-Book", size: 18))
+                            .foregroundColor(.white.opacity(0.8))
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(4)
+                    }
+                }
+                
+                Spacer()
+                
+                // Sign in button
+                VStack(spacing: 16) {
+                    GoogleSignInButton(auth: auth)
+                        .padding(.horizontal, 24)
+                    
+                    Text("Your dreams are private and secure")
+                        .font(.custom("Avenir-Book", size: 14))
+                        .foregroundColor(.white.opacity(0.6))
+                }
+                .padding(.bottom, 60)
+            }
+            .padding(.horizontal, 32)
+        }
     }
+}
 
-    func updateUIViewController(_ vc: UIViewController, context: Context) {}
+struct GoogleSignInButton: View {
+    @ObservedObject var auth: AuthBridge
+    
+    var body: some View {
+        Button {
+            // Get the current window's root view controller
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let window = windowScene.windows.first,
+               let rootViewController = window.rootViewController {
+                Task { await auth.signIn(presenting: rootViewController) }
+            }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "globe")
+                    .font(.system(size: 18, weight: .medium))
+                
+                Text("Continue with Google")
+                    .font(.custom("Avenir-Medium", size: 18))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background(
+                RoundedRectangle(cornerRadius: 27)
+                    .fill(Color.ember)
+            )
+        }
+        .buttonStyle(.plain)
+    }
 }
