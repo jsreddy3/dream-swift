@@ -67,6 +67,7 @@ public struct ContentView: View {
     @State private var showLibrary = false
     @State private var dreamToOpen: Dream?    // navigation trigger
     @FocusState private var textEntryFocused: Bool
+    @State private var showFirstDreamCelebration = false
 
     public init(viewModel: CaptureViewModel, libraryViewModel: DreamLibraryViewModel) {
         _vm = State(initialValue: viewModel)
@@ -221,6 +222,15 @@ public struct ContentView: View {
                     vm.reset()
                     vm.state = .idle
                 }
+            }
+            // Observe state changes for first dream celebration
+            .onChange(of: vm.state) { newState in
+                if newState == .saved && vm.shouldShowFirstDreamCelebration() {
+                    showFirstDreamCelebration = true
+                }
+            }
+            .fullScreenCover(isPresented: $showFirstDreamCelebration) {
+                FirstDreamCelebrationView(isPresented: $showFirstDreamCelebration)
             }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } // End ZStack

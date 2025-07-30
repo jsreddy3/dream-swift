@@ -115,6 +115,10 @@ public enum AnalyticsEvent: String {
     case dreamRecordingExtended = "dream_recording_extended"
     case dreamSaved = "dream_saved"
     
+    // First Dream Celebration
+    case firstDreamCelebrationShown = "first_dream_celebration_shown"
+    case firstDreamCelebrationDismissed = "first_dream_celebration_dismissed"
+    
     // App Lifecycle
     case appLaunched = "app_launched"
     case appEnteredBackground = "app_entered_background"

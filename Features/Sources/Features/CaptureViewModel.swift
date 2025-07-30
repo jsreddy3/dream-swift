@@ -46,6 +46,9 @@ public final class CaptureViewModel {
     @ObservationIgnored
     private(set) var lastSavedDream: Dream?
     
+    // UserDefaults key for first dream tracking
+    private let firstDreamCompletedKey = "hasCompletedFirstDream"
+    
     public init(recorder: AudioRecorderActor, store: SyncingDreamStore) {
         self.store = store
         start = StartCaptureDream(recorder: recorder, store: store)
@@ -211,6 +214,11 @@ public final class CaptureViewModel {
             // Don't reset here - we might still extend this dream
             // Reset will happen when starting a new recording session
             state = .saved
+            
+            // Mark first dream as completed (unless in debug mode)
+            #if !DEBUG
+            UserDefaults.standard.set(true, forKey: firstDreamCompletedKey)
+            #endif
         } catch {
             state = .failed("Save error: \(error.localizedDescription)")
         }
@@ -248,5 +256,18 @@ public final class CaptureViewModel {
         // Now cancel from whichever thread happens to be running deinit.
         // 'cancel()' is inherently thread-safe.
         handle?.cancel()
+    }
+    
+    // MARK: - First Dream Celebration
+    
+    /// Check if we should show the first dream celebration
+    public func shouldShowFirstDreamCelebration() -> Bool {
+        #if DEBUG
+        // Always show in debug mode for testing
+        return true
+        #else
+        // In release, only show if it's their first dream
+        return !UserDefaults.standard.bool(forKey: firstDreamCompletedKey)
+        #endif
     }
 }
