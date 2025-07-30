@@ -80,3 +80,132 @@ public struct DreamTheme: Sendable, Codable {
         self.percentage = percentage
     }
 }
+
+// MARK: - User Preferences Models
+
+public struct UserPreferences: Sendable, Codable {
+    public let id: UUID?
+    public let userId: UUID?
+    
+    // Sleep patterns
+    public let typicalBedtime: String?
+    public let typicalWakeTime: String?
+    public let sleepQuality: String?
+    
+    // Dream patterns
+    public let dreamRecallFrequency: String?
+    public let dreamVividness: String?
+    public let commonDreamThemes: [String]
+    
+    // Goals & interests
+    public let primaryGoal: String?
+    public let interests: [String]
+    
+    // Notifications
+    public let reminderEnabled: Bool
+    public let reminderTime: String?
+    public let reminderFrequency: String
+    public let reminderDays: [String]
+    
+    // Personalization
+    public let initialArchetype: String?
+    public let personalityTraits: [String: String]
+    public let onboardingCompleted: Bool
+    
+    // Timestamps
+    public let createdAt: Date?
+    public let updatedAt: Date?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, userId = "user_id"
+        case typicalBedtime = "typical_bedtime"
+        case typicalWakeTime = "typical_wake_time"
+        case sleepQuality = "sleep_quality"
+        case dreamRecallFrequency = "dream_recall_frequency"
+        case dreamVividness = "dream_vividness"
+        case commonDreamThemes = "common_dream_themes"
+        case primaryGoal = "primary_goal"
+        case interests
+        case reminderEnabled = "reminder_enabled"
+        case reminderTime = "reminder_time"
+        case reminderFrequency = "reminder_frequency"
+        case reminderDays = "reminder_days"
+        case initialArchetype = "initial_archetype"
+        case personalityTraits = "personality_traits"
+        case onboardingCompleted = "onboarding_completed"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+    
+    public init(
+        id: UUID? = nil,
+        userId: UUID? = nil,
+        typicalBedtime: String? = nil,
+        typicalWakeTime: String? = nil,
+        sleepQuality: String? = nil,
+        dreamRecallFrequency: String? = nil,
+        dreamVividness: String? = nil,
+        commonDreamThemes: [String] = [],
+        primaryGoal: String? = nil,
+        interests: [String] = [],
+        reminderEnabled: Bool = true,
+        reminderTime: String? = nil,
+        reminderFrequency: String = "daily",
+        reminderDays: [String] = [],
+        initialArchetype: String? = nil,
+        personalityTraits: [String: String] = [:],
+        onboardingCompleted: Bool = false,
+        createdAt: Date? = nil,
+        updatedAt: Date? = nil
+    ) {
+        self.id = id
+        self.userId = userId
+        self.typicalBedtime = typicalBedtime
+        self.typicalWakeTime = typicalWakeTime
+        self.sleepQuality = sleepQuality
+        self.dreamRecallFrequency = dreamRecallFrequency
+        self.dreamVividness = dreamVividness
+        self.commonDreamThemes = commonDreamThemes
+        self.primaryGoal = primaryGoal
+        self.interests = interests
+        self.reminderEnabled = reminderEnabled
+        self.reminderTime = reminderTime
+        self.reminderFrequency = reminderFrequency
+        self.reminderDays = reminderDays
+        self.initialArchetype = initialArchetype
+        self.personalityTraits = personalityTraits
+        self.onboardingCompleted = onboardingCompleted
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
+
+public struct ArchetypeSuggestion: Sendable, Codable {
+    public let suggestedArchetype: String
+    public let confidence: Double
+    public let archetypeDetails: ArchetypeDetails
+    
+    enum CodingKeys: String, CodingKey {
+        case suggestedArchetype = "suggested_archetype"
+        case confidence
+        case archetypeDetails = "archetype_details"
+    }
+    
+    public init(suggestedArchetype: String, confidence: Double, archetypeDetails: ArchetypeDetails) {
+        self.suggestedArchetype = suggestedArchetype
+        self.confidence = confidence
+        self.archetypeDetails = archetypeDetails
+    }
+}
+
+public struct ArchetypeDetails: Sendable, Codable {
+    public let name: String
+    public let symbol: String
+    public let description: String
+    
+    public init(name: String, symbol: String, description: String) {
+        self.name = name
+        self.symbol = symbol
+        self.description = description
+    }
+}

@@ -151,12 +151,21 @@ public actor SyncingDreamStore: DreamStore, Sendable {
     public func allDreams() async throws -> [Dream] {
         let cached = try await local.allDreams()
 
-        if isOnline,
-           let cloud = try? await remote.allDreams() {
-            for dream in cloud {
-                try? await local.upsert(dream)
+        if isOnline {
+            // Add timeout protection to prevent hanging during startup
+            do {
+                let cloud = try await withTimeout(seconds: 8.0) { [self] in
+                    try await remote.allDreams()
+                }
+                for dream in cloud {
+                    try? await local.upsert(dream)
+                }
+                return cloud.sorted { $0.created_at > $1.created_at }
+            } catch {
+                // If remote call fails (including timeout), fall back to cached data
+                print("SyncingDreamStore: Remote allDreams failed, using cached data: \(error)")
+                return cached.sorted { $0.created_at > $1.created_at }
             }
-            return cloud.sorted { $0.created_at > $1.created_at }
         }
         return cached.sorted { $0.created_at > $1.created_at }
     }
@@ -202,11 +211,25 @@ public actor SyncingDreamStore: DreamStore, Sendable {
         // delegate straight to remote if we're online,
         // otherwise enqueue for later just like other ops.
         if isOnline {
-            print("DEBUG: Calling remote.requestAnalysis")
-            try await remote.requestAnalysis(for: id)
+            print("DEBUG: Calling remote.requestAnalysis with timeout protection")
+            try await withTimeout(seconds: 15.0) { [self] in
+                try await remote.requestAnalysis(for: id)
+            }
         } else {
             print("DEBUG: Offline, enqueueing for later")
             enqueue(.analyze(id))   // ← you may add this PendingOp later
+        }
+    }
+    
+    public func requestExpandedAnalysis(for id: UUID) async throws {
+        print("DEBUG: SyncingDreamStore.requestExpandedAnalysis called, isOnline: \(isOnline)")
+        if isOnline {
+            print("DEBUG: Calling remote.requestExpandedAnalysis with timeout protection")
+            try await withTimeout(seconds: 15.0) { [self] in
+                try await remote.requestExpandedAnalysis(for: id)
+            }
+        } else {
+            print("DEBUG: Offline, can't do expanded analysis")
         }
     }
 
@@ -370,6 +393,28 @@ public actor SyncingDreamStore: DreamStore, Sendable {
         }
     }
 
+    // MARK: – Timeout Helper
+    
+    private func withTimeout<T: Sendable>(seconds: Double, operation: @escaping @Sendable () async throws -> T) async throws -> T {
+        return try await withThrowingTaskGroup(of: T.self) { group in
+            // Add the actual operation
+            group.addTask {
+                try await operation()
+            }
+            
+            // Add a timeout task
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw SyncingDreamStoreError.timeout
+            }
+            
+            // Return the first result (either success or timeout)
+            let result = try await group.next()!
+            group.cancelAll()
+            return result
+        }
+    }
+
     // MARK: – Transcript merge (immutable Segment copy)
 
     private func mergeTranscript(_ r: UploadResult) async throws {
@@ -406,4 +451,8 @@ internal enum PendingOp: Codable {
     case finish(UUID)
     case analyze(UUID)
     case delete(UUID)
+}
+
+enum SyncingDreamStoreError: Error {
+    case timeout
 }

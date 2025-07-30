@@ -24,5 +24,6 @@ public enum Config {
     
     /// Force onboarding to show for all users (for testing purposes)
     /// Set to false for production to respect user completion state
-    public static let forceOnboardingForTesting: Bool = false
+    /// Temporarily disabled to prevent startup hanging issues
+    public static let forceOnboardingForTesting: Bool = true
 }

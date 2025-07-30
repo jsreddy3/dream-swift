@@ -39,10 +39,20 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     private var activeStreams: [UUID: Task<(), Never>] = [:]
 
     public init(baseURL: URL,
-                session: URLSession = .shared,
+                session: URLSession? = nil,
                 auth: AuthStore) {
         self.base = baseURL
-        self.session = session
+        
+        // Configure session with proper timeouts if none provided
+        if let session = session {
+            self.session = session
+        } else {
+            let config = URLSessionConfiguration.default
+            config.timeoutIntervalForRequest = 10.0  // Individual request timeout
+            config.timeoutIntervalForResource = 30.0 // Overall resource timeout
+            self.session = URLSession(configuration: config)
+        }
+        
         self.auth = auth
         var c: AsyncStream<UploadResult>.Continuation!
         self.stream = AsyncStream { c = $0 }
