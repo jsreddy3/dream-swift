@@ -33,6 +33,7 @@ struct DreamApp: App {
     private let recorder = AudioRecorderActor()
     private let store:    SyncingDreamStore
     private let auth = sharedAuth
+    private let profileStore: RemoteProfileStore
 
     // `@Observable` class → store with @State
     @State private var captureVM: CaptureViewModel
@@ -65,7 +66,13 @@ struct DreamApp: App {
             baseURL: Config.apiBase,
             auth: sharedAuth)
         let s      = SyncingDreamStore(local: local, remote: remote)
-        store = s                                   // ← ‘let’ member initialised
+        store = s                                   // ← 'let' member initialised
+        
+        // Initialize profile store
+        profileStore = RemoteProfileStore(
+            baseURL: Config.apiBase,
+            auth: sharedAuth
+        )
 
         // build the VMs without touching self
         let vm = CaptureViewModel(recorder: recorder, store: s)
@@ -83,7 +90,7 @@ struct DreamApp: App {
 
     var body: some Scene {
             WindowGroup {
-                RootView(auth: authBridge, captureVM: captureVM, libraryVM: libraryVM)
+                RootView(auth: authBridge, captureVM: captureVM, libraryVM: libraryVM, profileStore: profileStore)
                     .font(DesignSystem.Typography.defaultFont())
                     .onAppear {
                         appDelegate.configure(store: store)

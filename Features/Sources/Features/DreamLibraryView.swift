@@ -230,18 +230,59 @@ struct DreamLibraryView: View {
 
     private func configureNavFont() {
         let appearance = UINavigationBarAppearance()
-        appearance.configureWithTransparentBackground()
-        appearance.backgroundColor = .clear
+        appearance.configureWithOpaqueBackground()
+        
+        // Create a UIImage from the gradient to use as background
+        let gradientImage = createGradientImage()
+        appearance.backgroundImage = gradientImage
+        appearance.shadowImage = UIImage() // Remove the bottom line
+        appearance.shadowColor = .clear
+        
         appearance.largeTitleTextAttributes = [
-            .font: UIFont(name: "Avenir-Heavy", size: 34) as Any,
+            .font: UIFont(name: DesignSystem.Typography.fontFamilyHeavy, size: 32) ?? UIFont.systemFont(ofSize: 32, weight: .heavy),
             .foregroundColor: UIColor.white
         ]
         appearance.titleTextAttributes = [
-            .font: UIFont(name: "Avenir-Medium", size: 18) as Any,
+            .font: UIFont(name: DesignSystem.Typography.fontFamilyMedium, size: 17) ?? UIFont.systemFont(ofSize: 17, weight: .medium),
             .foregroundColor: UIColor.white
         ]
+        
         UINavigationBar.appearance().standardAppearance  = appearance
         UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        UINavigationBar.appearance().compactAppearance = appearance
+    }
+    
+    private func createGradientImage() -> UIImage? {
+        let gradientLayer = CAGradientLayer()
+        gradientLayer.frame = CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 200)
+        
+        // Match the dream gradient colors
+        gradientLayer.colors = [
+            UIColor(red: 255/255, green: 145/255, blue: 0/255, alpha: 0.6).cgColor, // ember
+            UIColor(red: 128/255, green: 0/255, blue: 128/255, alpha: 0.3).cgColor, // purple
+            UIColor(red: 255/255, green: 192/255, blue: 203/255, alpha: 0.2).cgColor  // pink
+        ]
+        
+        // Match the gradient direction (topLeading to bottomTrailing)
+        gradientLayer.startPoint = CGPoint(x: 0, y: 0)
+        gradientLayer.endPoint = CGPoint(x: 1, y: 1)
+        
+        // Add dark background behind gradient
+        let backgroundLayer = CALayer()
+        backgroundLayer.frame = gradientLayer.frame
+        backgroundLayer.backgroundColor = UIColor(white: 0.15, alpha: 1.0).cgColor
+        
+        // Render to image
+        UIGraphicsBeginImageContextWithOptions(gradientLayer.frame.size, false, 0)
+        guard let context = UIGraphicsGetCurrentContext() else { return nil }
+        
+        backgroundLayer.render(in: context)
+        gradientLayer.render(in: context)
+        
+        let image = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        return image
     }
 }
 

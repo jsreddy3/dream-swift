@@ -95,6 +95,15 @@
 	</dict>
 	<key>UIFileSharingEnabled</key>
 	<false/>
+	<key>UIAppFonts</key>
+	<array>
+		<string>bitstream-iowan-old-style-bt-586c36a8d7712.ttf</string>
+		<string>bitstream-iowan-old-style-italic-bt-586c3740dc396.ttf</string>
+		<string>bitstream-iowan-old-style-bold-bt-586c371d8d669.ttf</string>
+		<string>bitstream-iowan-old-style-bold-italic-bt-586c37701cb62.ttf</string>
+		<string>bitstream-iowan-old-style-black-bt-586c36e930225.ttf</string>
+		<string>bitstream-iowan-old-style-black-italic-bt-586c378f12ca1.ttf</string>
+	</array>
     <key>NSMicrophoneUsageDescription</key>
     <string>DreamRecorder needs access to your microphone so it can capture your dream audio.</string>
 </dict>

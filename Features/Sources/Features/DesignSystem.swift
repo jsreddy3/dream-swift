@@ -46,60 +46,78 @@ public enum DesignSystem {
     
     // MARK: - Typography
     public enum Typography {
-        // Font families
-        public static let fontFamilyBase = "Avenir"
-        public static let fontFamilyHeavy = "Avenir-Heavy"
-        public static let fontFamilyMedium = "Avenir-Medium"
-        public static let fontFamilyBook = "Avenir-Book"
+        // Font families - Iowan Old Style (Bitstream)
+        // Mapping: Avenir -> Iowan Old Style
+        // Heavy -> Black, Medium -> Bold, Book -> Roman
+        public static let fontFamilyBase = "IowanOldStyleBT-Roman"
+        public static let fontFamilyHeavy = "IowanOldStyleBT-Black"
+        public static let fontFamilyMedium = "IowanOldStyleBT-Bold"
+        public static let fontFamilyBook = "IowanOldStyleBT-Roman"
         
-        // Font styles with exact sizes from audit
+        // Fallback to Avenir if custom fonts fail to load
+        private static let fallbackBase = "Avenir"
+        private static let fallbackHeavy = "Avenir-Heavy"
+        private static let fallbackMedium = "Avenir-Medium"
+        private static let fallbackBook = "Avenir-Book"
+        
+        // Helper to create font with fallback
+        private static func customFont(_ name: String, fallback: String, size: CGFloat) -> Font {
+            if UIFont(name: name, size: size) != nil {
+                return .custom(name, size: size)
+            } else {
+                print("⚠️ Font '\(name)' not found, falling back to '\(fallback)'")
+                return .custom(fallback, size: size)
+            }
+        }
+        
+        // Font styles with adjusted sizes for serif readability
         public static func largeTitle() -> Font {
-            .custom(fontFamilyHeavy, size: 42)
+            customFont(fontFamilyHeavy, fallback: fallbackHeavy, size: 40)
         }
         
         public static func title1() -> Font {
-            .custom(fontFamilyHeavy, size: 32)
+            customFont(fontFamilyHeavy, fallback: fallbackHeavy, size: 30)
         }
         
         public static func title2() -> Font {
-            .custom(fontFamilyHeavy, size: 28)
+            customFont(fontFamilyHeavy, fallback: fallbackHeavy, size: 26)
         }
         
         public static func title3() -> Font {
-            .custom(fontFamilyMedium, size: 24)
+            customFont(fontFamilyMedium, fallback: fallbackMedium, size: 22)
         }
         
         public static func headline() -> Font {
-            .custom(fontFamilyHeavy, size: 20)
+            customFont(fontFamilyMedium, fallback: fallbackMedium, size: 19)
         }
         
         public static func subheadline() -> Font {
-            .custom(fontFamilyMedium, size: 18)
+            customFont(fontFamilyMedium, fallback: fallbackMedium, size: 17)
         }
         
         public static func body() -> Font {
-            .custom(fontFamilyBook, size: 18)
+            customFont(fontFamilyBook, fallback: fallbackBook, size: 17)
         }
         
         public static func bodyMedium() -> Font {
-            .custom(fontFamilyMedium, size: 16)
+            customFont(fontFamilyMedium, fallback: fallbackMedium, size: 15)
         }
         
         public static func bodySmall() -> Font {
-            .custom(fontFamilyBook, size: 16)
+            customFont(fontFamilyBook, fallback: fallbackBook, size: 15)
         }
         
         public static func caption() -> Font {
-            .custom(fontFamilyBook, size: 14)
+            customFont(fontFamilyBook, fallback: fallbackBook, size: 13)
         }
         
         public static func captionMedium() -> Font {
-            .custom(fontFamilyMedium, size: 14)
+            customFont(fontFamilyMedium, fallback: fallbackMedium, size: 13)
         }
         
         // Special sizes
         public static func displayLarge() -> Font {
-            .custom(fontFamilyMedium, size: 30)
+            customFont(fontFamilyMedium, fallback: fallbackMedium, size: 28)
         }
         
         // System fonts for icons
@@ -125,7 +143,7 @@ public enum DesignSystem {
         
         // Default app font
         public static func defaultFont() -> Font {
-            .custom(fontFamilyBase, size: 17)
+            customFont(fontFamilyBase, fallback: fallbackBase, size: 16)
         }
     }
     

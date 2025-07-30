@@ -12,11 +12,13 @@ public struct MainTabView: View {
     @EnvironmentObject private var auth: AuthBridge
     
     private let store: DreamStore
+    private let profileStore: RemoteProfileStore
     
-    public init(captureVM: CaptureViewModel, libraryVM: DreamLibraryViewModel, store: DreamStore) {
+    public init(captureVM: CaptureViewModel, libraryVM: DreamLibraryViewModel, store: DreamStore, profileStore: RemoteProfileStore) {
         self._captureVM = State(initialValue: captureVM)
         self._libraryVM = State(initialValue: libraryVM)
         self.store = store
+        self.profileStore = profileStore
         
         // Force TabView background to be transparent
         UITabBar.appearance().isTranslucent = true
@@ -27,7 +29,7 @@ public struct MainTabView: View {
     public var body: some View {
         TabView(selection: $selectedTab) {
             // Profile Tab
-            ProfileView(store: store)
+            ProfileView(profileStore: profileStore, dreamStore: store)
                 .tabItem {
                     Label("Profile", systemImage: "moon.stars.fill")
                 }

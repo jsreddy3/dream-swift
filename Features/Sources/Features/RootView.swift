@@ -198,11 +198,13 @@ public struct RootView: View {                      // ← public
     @ObservedObject public var auth: AuthBridge
     public let captureVM: CaptureViewModel
     public let libraryVM: DreamLibraryViewModel
+    public let profileStore: RemoteProfileStore
 
-    public init(auth: AuthBridge, captureVM: CaptureViewModel, libraryVM: DreamLibraryViewModel) {
+    public init(auth: AuthBridge, captureVM: CaptureViewModel, libraryVM: DreamLibraryViewModel, profileStore: RemoteProfileStore) {
         self.auth = auth
         self.captureVM = captureVM
         self.libraryVM = libraryVM
+        self.profileStore = profileStore
     }
 
     public var body: some View {
@@ -253,13 +255,14 @@ public struct RootView: View {                      // ← public
                 }
             }
         } else if auth.needsOnboarding {
-            OnboardingPlaceholderView(auth: auth)
+            OnboardingPlaceholderView(auth: auth, profileStore: profileStore)
         } else {
             if let store = auth.store {
                 MainTabView(
                     captureVM: captureVM, 
                     libraryVM: libraryVM,
-                    store: store
+                    store: store,
+                    profileStore: profileStore
                 )
                 .environmentObject(auth)
             } else {
@@ -365,6 +368,7 @@ struct GoogleSignInButton: View {
 // MARK: - Enhanced Onboarding View with Data Collection
 struct OnboardingPlaceholderView: View {
     @ObservedObject var auth: AuthBridge
+    let profileStore: RemoteProfileStore
     @State private var currentPage = 0
     @State private var contentOpacity = 0.0
     @State private var userPreferences = UserPreferences()
@@ -624,7 +628,18 @@ struct OnboardingPlaceholderView: View {
                 try await suggestArchetype()
             }
             #if DEBUG
-            print("🔍 [PREFERENCES] Successfully got archetype suggestion")
+            print("🔍 [PREFERENCES] Successfully got archetype suggestion: \(archetype.suggestedArchetype)")
+            #endif
+            
+            // Save the initial archetype to the user's profile
+            try await withTimeout(seconds: 10) {
+                try await profileStore.saveInitialArchetype(
+                    archetype: archetype.suggestedArchetype,
+                    confidence: archetype.confidence
+                )
+            }
+            #if DEBUG
+            print("🔍 [PREFERENCES] Successfully saved archetype to profile")
             #endif
             
             await MainActor.run {
@@ -645,7 +660,7 @@ struct OnboardingPlaceholderView: View {
             }
             
             #if DEBUG
-            print("✅ [PREFERENCES] Successfully submitted preferences and got archetype: \(archetype.suggestedArchetype)")
+            print("✅ [PREFERENCES] Successfully submitted preferences, got archetype: \(archetype.suggestedArchetype), and saved to profile")
             #endif
         } catch {
             #if DEBUG
@@ -655,15 +670,35 @@ struct OnboardingPlaceholderView: View {
                 isSubmittingPreferences = false
                 
                 // Create fallback archetype so user can continue
-                suggestedArchetype = ArchetypeSuggestion(
-                    suggestedArchetype: "starweaver",
+                let fallbackArchetype = ArchetypeSuggestion(
+                    suggestedArchetype: "analytical",
                     confidence: 0.5,
                     archetypeDetails: ArchetypeDetails(
-                        name: "Starweaver", 
-                        symbol: "🌟", 
-                        description: "A dreamer who finds patterns and wisdom in the cosmos of sleep"
+                        name: "Analytical Dreamer", 
+                        symbol: "🧠", 
+                        description: "Your dreams quietly process and organize your daily experiences",
+                        researcher: "Dr. Ernest Hartmann",
+                        theory: "Thick-Boundary Dreaming Theory"
                     )
                 )
+                suggestedArchetype = fallbackArchetype
+                
+                // Try to save the fallback archetype
+                Task {
+                    do {
+                        try await profileStore.saveInitialArchetype(
+                            archetype: fallbackArchetype.suggestedArchetype,
+                            confidence: fallbackArchetype.confidence
+                        )
+                        #if DEBUG
+                        print("⚠️ [PREFERENCES] Saved fallback archetype to profile")
+                        #endif
+                    } catch {
+                        #if DEBUG
+                        print("❌ [PREFERENCES] Failed to save fallback archetype: \(error)")
+                        #endif
+                    }
+                }
                 
                 // Auto-advance to archetype reveal screen with fallback
                 withAnimation(.easeInOut(duration: 0.8)) {
@@ -727,55 +762,13 @@ struct OnboardingPlaceholderView: View {
         // Complete the journey tracking
         journeyTracker.completeJourney(skipped: false)
         
-        // Prepare the API request with both preferences and journey data
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        
-        // First encode the preferences
-        var preferencesDict = try JSONSerialization.jsonObject(
-            with: try encoder.encode(preferences)
-        ) as? [String: Any] ?? [:]
-        
-        // Add the journey data
-        if let journeyDict = try? journeyTracker.exportAsDictionary() {
-            preferencesDict["onboarding_journey"] = journeyDict
-        }
-        
-        // Convert the combined dictionary to JSON data
-        let data = try JSONSerialization.data(withJSONObject: preferencesDict)
-        
-        var request = URLRequest(url: Config.apiBase.appendingPathComponent("/api/users/me/preferences"))
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(auth.jwt ?? "")", forHTTPHeaderField: "Authorization")
-        request.httpBody = data
-        
-        let (responseData, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 201 else {
-            throw PreferencesError.invalidResponse
-        }
-        
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(UserPreferences.self, from: responseData)
+        // TODO: Add journey data to preferences when backend supports it
+        // For now, just create the preferences
+        return try await profileStore.createPreferences(preferences)
     }
     
     private func suggestArchetype() async throws -> ArchetypeSuggestion {
-        var request = URLRequest(url: Config.apiBase.appendingPathComponent("/api/users/me/preferences/suggest-archetype"))
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(auth.jwt ?? "")", forHTTPHeaderField: "Authorization")
-        
-        let (responseData, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            throw PreferencesError.invalidResponse
-        }
-        
-        let decoder = JSONDecoder()
-        return try decoder.decode(ArchetypeSuggestion.self, from: responseData)
+        return try await profileStore.suggestArchetype()
     }
     
     // MARK: - Helper Functions
@@ -1754,6 +1747,27 @@ struct ArchetypeRevealScreen: View {
                         .multilineTextAlignment(.center)
                         .lineSpacing(4)
                         .opacity(showDetails ? 1 : 0)
+                    
+                    // Academic reference
+                    if let researcher = archetype.archetypeDetails.researcher,
+                       let theory = archetype.archetypeDetails.theory {
+                        VStack(spacing: 4) {
+                            Text("Based on research by")
+                                .font(DesignSystem.Typography.caption())
+                                .foregroundColor(DesignSystem.Colors.textQuaternary)
+                            
+                            Text(researcher)
+                                .font(DesignSystem.Typography.captionMedium())
+                                .foregroundColor(DesignSystem.Colors.textTertiary)
+                            
+                            Text(theory)
+                                .font(DesignSystem.Typography.caption())
+                                .foregroundColor(DesignSystem.Colors.textQuaternary)
+                                .italic()
+                        }
+                        .padding(.top, 8)
+                        .opacity(showDetails ? 1 : 0)
+                    }
                     
                     // Confidence indicator
                     HStack {

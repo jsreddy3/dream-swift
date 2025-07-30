@@ -7,73 +7,239 @@ import DomainLogic
 
 @MainActor
 public class ProfileViewModel: ObservableObject {
-    @Published var currentArchetype: DreamArchetype = .starweaver
+    @Published var userProfile: UserProfile?
+    @Published var currentArchetype: DreamArchetype = .analytical
     @Published var todayMessage: String = ""
     @Published var recentSymbols: [String] = []
     @Published var emotionalData: [EmotionData] = []
     @Published var statistics: DreamStatistics = .empty
     @Published var isLoading = false
+    @Published var isCalculating = false
+    @Published var error: Error?
+    @Published var isShowingCachedData = false
+    @Published var cacheAge: String?
     
-    private let store: DreamStore
-    private var dreams: [Dream] = []
+    private let profileStore: RemoteProfileStore
+    private let dreamStore: DreamStore
+    private let cache = ProfileCache()
+    private var pollingTask: Task<Void, Never>?
     
-    public init(store: DreamStore) {
-        self.store = store
+    public init(
+        profileStore: RemoteProfileStore,
+        dreamStore: DreamStore
+    ) {
+        self.profileStore = profileStore
+        self.dreamStore = dreamStore
     }
     
-    public func loadProfile() async {
+    public func loadProfile(forceCalculate: Bool = false) async {
+        // First, try to load from cache for instant display
+        if let cached = try? await cache.load() {
+            self.userProfile = cached.profile
+            updateUIFromProfile(cached.profile)
+            self.isShowingCachedData = true
+            self.cacheAge = cached.ageDescription
+            
+            // If cache is not expired and we're not forcing, we're done
+            if !cached.isExpired && !forceCalculate {
+                return
+            }
+        }
+        
+        // Now fetch from network
         isLoading = true
+        error = nil
         
         do {
-            // Load all dreams
-            dreams = try await store.allDreams()
+            // Force calculation if requested
+            if forceCalculate {
+                try await profileStore.calculateProfile(force: true)
+                isCalculating = true
+                startPollingForCompletion()
+            }
             
-            // Calculate profile data
+            // Fetch profile
+            let profile = try await profileStore.profile()
+            
+            // Only update UI if data has changed
+            if profile.isDifferentFrom(self.userProfile) {
+                self.userProfile = profile
+                updateUIFromProfile(profile)
+            }
+            
+            // Save to cache
+            try? await cache.save(profile)
+            
+            // Clear cache indicators
+            self.isShowingCachedData = false
+            self.cacheAge = nil
+            
+            // Check if we need to start polling
+            if profile.calculationStatus == "processing" {
+                isCalculating = true
+                startPollingForCompletion()
+            }
+            
+            isLoading = false
+        } catch {
+            self.error = error
+            isLoading = false
+            
+            // If we have cached data, keep showing it
+            if userProfile != nil {
+                // We already have data displayed, just show error indicator
+                self.isShowingCachedData = true
+            } else {
+                // No cached data, fallback to local calculation
+                await loadProfileFromLocalDreams()
+            }
+        }
+    }
+    
+    private func updateUIFromProfile(_ profile: UserProfile) {
+        // Map backend archetype to frontend enum
+        if let archetypeString = profile.archetype {
+            self.currentArchetype = mapArchetype(from: archetypeString)
+        }
+        
+        // Update today's message
+        self.todayMessage = generateTodayMessage()
+        
+        // Map symbols
+        self.recentSymbols = profile.recentSymbols
+        
+        // Map emotional metrics to wave data
+        self.emotionalData = profile.emotionalMetrics.map { metric in
+            EmotionData(
+                name: metric.name,
+                color: metric.color,
+                intensity: metric.intensity,
+                phase: Double.random(in: 0...2) // Random phase for wave animation
+            )
+        }
+        
+        // Map statistics
+        let avgDuration = profile.statistics.totalDreams > 0 
+            ? profile.statistics.totalDurationMinutes / profile.statistics.totalDreams 
+            : 0
+        self.statistics = DreamStatistics(
+            totalDreams: profile.statistics.totalDreams,
+            longestDream: avgDuration > 0 ? "\(avgDuration) minutes" : "N/A",
+            topThemes: profile.dreamThemes.map { theme in
+                DreamTheme(
+                    id: UUID(),
+                    name: theme.name,
+                    percentage: theme.percentage
+                )
+            }
+        )
+    }
+    
+    private func mapArchetype(from string: String) -> DreamArchetype {
+        switch string.lowercased() {
+        case "analytical": return .analytical
+        case "reflective": return .reflective
+        case "introspective": return .introspective
+        case "lucid": return .lucid
+        case "creative": return .creative
+        case "resolving": return .resolving
+        // Legacy mappings for existing users
+        case "starweaver": return .introspective
+        case "moonwalker": return .lucid
+        case "soulkeeper": return .reflective
+        case "timeseeker": return .resolving
+        case "shadowmender": return .resolving
+        case "lightbringer": return .creative
+        default: return .analytical
+        }
+    }
+    
+    private func startPollingForCompletion() {
+        pollingTask?.cancel()
+        
+        pollingTask = Task {
+            var attempts = 0
+            let maxAttempts = 10 // Poll for up to 30 seconds
+            
+            while attempts < maxAttempts && !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+                
+                do {
+                    let profile = try await profileStore.profile()
+                    if profile.calculationStatus == "completed" {
+                        await MainActor.run {
+                            self.userProfile = profile
+                            self.updateUIFromProfile(profile)
+                            self.isCalculating = false
+                            self.isShowingCachedData = false
+                            self.cacheAge = nil
+                        }
+                        // Save completed profile to cache
+                        try? await cache.save(profile)
+                        break
+                    }
+                } catch {
+                    // Continue polling on error
+                }
+                
+                attempts += 1
+            }
+            
             await MainActor.run {
-                self.currentArchetype = calculateArchetype()
+                self.isCalculating = false
+            }
+        }
+    }
+    
+    // MARK: - Fallback to Local Calculation
+    
+    private func loadProfileFromLocalDreams() async {
+        do {
+            let dreams = try await dreamStore.allDreams()
+            
+            await MainActor.run {
+                self.currentArchetype = calculateArchetype(from: dreams)
                 self.todayMessage = generateTodayMessage()
-                self.recentSymbols = extractRecentSymbols()
-                self.emotionalData = generateEmotionalData()
-                self.statistics = calculateStatistics()
+                self.recentSymbols = ["🌟", "🌊", "🦋"] // Default symbols
+                self.emotionalData = generateDefaultEmotionalData()
+                self.statistics = calculateStatistics(from: dreams)
                 self.isLoading = false
             }
         } catch {
-            #if DEBUG
-            print("Failed to load profile: \(error)")
-            #endif
+            // Show empty state
             await MainActor.run {
                 self.isLoading = false
             }
         }
     }
     
-    // MARK: - Archetype Calculation
+    // MARK: - Local Calculation Helpers
     
-    private func calculateArchetype() -> DreamArchetype {
+    private func calculateArchetype(from dreams: [Dream]) -> DreamArchetype {
         // For MVP, use simple logic based on dream count and themes
         // Later: implement sophisticated analysis
         
-        guard !dreams.isEmpty else { return .starweaver }
+        guard !dreams.isEmpty else { return .analytical }
         
         // Analyze dream titles and summaries for themes
         let allText = dreams.compactMap { dream in
             [dream.title, dream.summary].compactMap { $0 }.joined(separator: " ")
         }.joined(separator: " ").lowercased()
         
-        // Simple keyword matching for MVP
-        if allText.contains("fly") || allText.contains("travel") || allText.contains("journey") {
-            return .moonwalker
+        // Simple keyword matching for MVP (updated for new archetypes)
+        if allText.contains("fly") || allText.contains("control") || allText.contains("aware") {
+            return .lucid
         } else if allText.contains("feel") || allText.contains("emotion") || allText.contains("heart") {
-            return .soulkeeper
-        } else if allText.contains("past") || allText.contains("memory") || allText.contains("future") {
-            return .timeseeker
-        } else if allText.contains("dark") || allText.contains("fear") || allText.contains("shadow") {
-            return .shadowmender
-        } else if allText.contains("light") || allText.contains("joy") || allText.contains("happy") {
-            return .lightbringer
+            return .reflective
+        } else if allText.contains("symbol") || allText.contains("meaning") || allText.contains("deep") {
+            return .introspective
+        } else if allText.contains("solve") || allText.contains("problem") || allText.contains("work") {
+            return .resolving
+        } else if allText.contains("create") || allText.contains("imagine") || allText.contains("art") {
+            return .creative
         }
         
-        return .starweaver // Default
+        return .analytical // Default
     }
     
     // MARK: - Message Generation
@@ -96,7 +262,7 @@ public class ProfileViewModel: ObservableObject {
     
     // MARK: - Emotional Data
     
-    private func generateEmotionalData() -> [EmotionData] {
+    private func generateDefaultEmotionalData() -> [EmotionData] {
         // For MVP, generate sample wave data using design system colors
         // Later: analyze dream emotions
         return [
@@ -108,7 +274,7 @@ public class ProfileViewModel: ObservableObject {
     
     // MARK: - Statistics
     
-    private func calculateStatistics() -> DreamStatistics {
+    private func calculateStatistics(from dreams: [Dream]) -> DreamStatistics {
         guard !dreams.isEmpty else { return .empty }
         
         // Calculate longest dream
@@ -155,83 +321,97 @@ public struct DreamArchetype: Sendable {
     let name: String
     let symbol: String
     let messages: [String]
+    let researcher: String
+    let theory: String
     
-    static let starweaver = DreamArchetype(
-        id: "starweaver",
-        name: "Starweaver",
-        symbol: "🌟",
+    static let analytical = DreamArchetype(
+        id: "analytical",
+        name: "Analytical Dreamer",
+        symbol: "🧠",
         messages: [
-            "Symbols dance through your sleep tonight",
-            "Your dreams weave stories yet untold",
-            "The cosmos speaks through your slumber",
-            "Intricate patterns emerge in your rest",
-            "Tonight's dreams hold ancient wisdom"
-        ]
+            "Your mind processes today's experiences",
+            "Dreams organize your practical thoughts",
+            "Structure emerges from nocturnal reflection",
+            "Tonight's rest clarifies tomorrow's tasks",
+            "Your sleeping brain sorts and files"
+        ],
+        researcher: "Dr. Ernest Hartmann",
+        theory: "Thick-Boundary Dreaming Theory"
     )
     
-    static let moonwalker = DreamArchetype(
-        id: "moonwalker",
-        name: "Moonwalker",
-        symbol: "🌙",
+    static let reflective = DreamArchetype(
+        id: "reflective",
+        name: "Reflective Dreamer",
+        symbol: "🌊",
         messages: [
-            "New paths await in tonight's journey",
-            "Your dream feet know ancient roads",
-            "Adventure calls from beyond the veil",
-            "Traverse the landscapes of your mind",
-            "Tonight you walk between worlds"
-        ]
+            "Emotions flow through tonight's dreams",
+            "Your heart processes while you rest",
+            "Relationships deepen in dream space",
+            "Emotional wisdom emerges in sleep",
+            "Dreams heal what daylight cannot touch"
+        ],
+        researcher: "Dr. Rosalind Cartwright",
+        theory: "Dreams as Emotional Adaptation"
     )
     
-    static let soulkeeper = DreamArchetype(
-        id: "soulkeeper",
-        name: "Soulkeeper",
-        symbol: "💫",
+    static let introspective = DreamArchetype(
+        id: "introspective",
+        name: "Introspective Dreamer",
+        symbol: "🔍",
         messages: [
-            "Deep waters reflect your inner truth",
-            "Emotions rise like tides in sleep",
-            "Your heart speaks clearest at night",
-            "Dreams reveal what daylight hides",
-            "Tonight's rest brings emotional clarity"
-        ]
+            "Symbols reveal your inner landscape",
+            "Deep insights await in tonight's dreams",
+            "Your unconscious speaks in vivid imagery",
+            "Profound meanings emerge from sleep",
+            "Dreams illuminate your inner world"
+        ],
+        researcher: "Dr. Michael Schredl",
+        theory: "Dream Recall and Personality Research"
     )
     
-    static let timeseeker = DreamArchetype(
-        id: "timeseeker",
-        name: "Timeseeker",
-        symbol: "⏳",
+    static let lucid = DreamArchetype(
+        id: "lucid",
+        name: "Lucid Dreamer",
+        symbol: "🌀",
         messages: [
-            "Past and future merge in dreams",
-            "Time bends within your sleeping mind",
-            "Memories transform into prophecies",
-            "Yesterday's echoes meet tomorrow's call",
-            "Dreams transcend temporal boundaries"
-        ]
+            "Consciousness awakens within dreams",
+            "Your awareness bridges sleep and wake",
+            "Tonight you may direct your dreams",
+            "Metacognition flourishes in your rest",
+            "Dream control is within your reach"
+        ],
+        researcher: "Dr. Stephen LaBerge",
+        theory: "Lucid Dreaming and Metacognition"
     )
     
-    static let shadowmender = DreamArchetype(
-        id: "shadowmender",
-        name: "Shadowmender",
-        symbol: "🌑",
+    static let creative = DreamArchetype(
+        id: "creative",
+        name: "Creative Dreamer",
+        symbol: "🎨",
         messages: [
-            "Darkness holds your greatest strength",
-            "Fear becomes wisdom in your dreams",
-            "Shadows teach what light cannot",
-            "Transform challenges into power tonight",
-            "Your dreams alchemize the darkness"
-        ]
+            "Imagination flows freely tonight",
+            "Creative solutions emerge in dreams",
+            "Your sleeping mind paints new worlds",
+            "Artistic inspiration awaits in rest",
+            "Dreams weave tomorrow's innovations"
+        ],
+        researcher: "Dr. Ernest Hartmann",
+        theory: "Thin-Boundary Dreaming Theory"
     )
     
-    static let lightbringer = DreamArchetype(
-        id: "lightbringer",
-        name: "Lightbringer",
-        symbol: "☀️",
+    static let resolving = DreamArchetype(
+        id: "resolving",
+        name: "Resolving Dreamer",
+        symbol: "⚙️",
         messages: [
-            "Joy illuminates your dream path",
-            "You carry dawn within your rest",
-            "Light flows through your sleeping soul",
-            "Dreams of hope and healing await",
-            "Tonight's visions bring renewal"
-        ]
+            "Dreams work through today's challenges",
+            "Solutions emerge from sleeping thoughts",
+            "Your mind rehearses future scenarios",
+            "Problems transform in dream space",
+            "Tonight's rest brings tomorrow's answers"
+        ],
+        researcher: "Dr. G. William Domhoff",
+        theory: "Dreams as Problem-solving Mechanisms"
     )
 }
 

@@ -204,10 +204,14 @@ public struct ArchetypeDetails: Sendable, Codable {
     public let name: String
     public let symbol: String
     public let description: String
+    public let researcher: String?
+    public let theory: String?
     
-    public init(name: String, symbol: String, description: String) {
+    public init(name: String, symbol: String, description: String, researcher: String? = nil, theory: String? = nil) {
         self.name = name
         self.symbol = symbol
         self.description = description
+        self.researcher = researcher
+        self.theory = theory
     }
 }
