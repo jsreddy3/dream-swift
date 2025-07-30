@@ -271,6 +271,23 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         }
     }
     
+    public func requestExpandedAnalysis(for id: UUID) async throws {
+        print("DEBUG: RemoteDreamStore.requestExpandedAnalysis called for id: \(id)")
+        do {
+            let req = try await makeRequest(
+                path: "dreams/\(id.uuidString.lowercased())/generate-expanded-analysis",
+                method: "POST"
+            )
+            print("DEBUG: Expanded analysis request created: \(req.url?.absoluteString ?? "no url")")
+            print("DEBUG: About to perform expanded analysis request...")
+            try await perform(req)
+            print("DEBUG: Expanded analysis request completed successfully")
+        } catch {
+            print("DEBUG: requestExpandedAnalysis error: \(error)")
+            throw error
+        }
+    }
+    
     public func generateSummary(for id: UUID) async throws -> String {
         let req = try await makeRequest(
             path: "dreams/\(id.uuidString.lowercased())/generate-summary",

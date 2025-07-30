@@ -9,7 +9,7 @@ struct TextClipEntry: View {
     var body: some View {
         HStack(spacing: 8) {
             TextField("Type your dream…", text: $text, axis: .vertical)
-                .font(.custom("Avenir-Book", size: 17))
+                .font(DesignSystem.Typography.defaultFont())
                 .disabled(disabled)
                 .submitLabel(.done)
                 .focused($isFocused)          // ← NEW

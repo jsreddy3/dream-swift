@@ -15,8 +15,8 @@ public struct ProfileView: View {
     
     public var body: some View {
         ZStack {
-            // Background
-            backgroundGradient
+            // Background - use standard app background
+            DreamBackground()
             
             ScrollView {
                 VStack(spacing: 0) {
@@ -61,24 +61,6 @@ public struct ProfileView: View {
             await viewModel.loadProfile()
         }
     }
-    
-    private var backgroundGradient: some View {
-        ZStack {
-            DesignSystem.Colors.backgroundPrimary
-            
-            // Archetype-specific gradient
-            LinearGradient(
-                colors: viewModel.currentArchetype.colors.map { Color(hex: $0).opacity(0.3) },
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            
-            // Animated stars
-            StarsBackgroundView()
-                .opacity(0.5)
-        }
-        .ignoresSafeArea()
-    }
 }
 
 // MARK: - Dream Archetype View
@@ -98,34 +80,27 @@ struct DreamArchetypeView: View {
                         particleSystem.draw(in: &context, size: size)
                     }
                 }
-                .frame(width: 150, height: 150)
+                .frame(width: DesignSystem.Sizes.profileImageLarge, height: DesignSystem.Sizes.profileImageLarge)
                 
                 // Avatar
                 Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: archetype.colors.map { Color(hex: $0) },
-                            center: .center,
-                            startRadius: 5,
-                            endRadius: 60
-                        )
-                    )
-                    .frame(width: 120, height: 120)
+                    .fill(DesignSystem.Gradients.emberGlow)
+                    .frame(width: DesignSystem.Sizes.profileImageMedium, height: DesignSystem.Sizes.profileImageMedium)
                     .overlay(
                         Text(archetype.symbol)
                             .font(.system(size: 50))
                     )
-                    .shadow(color: Color(hex: archetype.colors.first!).opacity(0.6), radius: 20)
+                    .shadow(color: DesignSystem.Colors.ember.opacity(0.6), radius: 20)
             }
             
             // Archetype Name
             Text(archetype.name)
-                .font(.custom("Avenir-Heavy", size: 28))
-                .foregroundColor(.white)
+                .font(DesignSystem.Typography.title2())
+                .foregroundColor(DesignSystem.Colors.textPrimary)
             
             // Dream Streak
             Text("15 nights of dreams")
-                .font(.custom("Avenir-Medium", size: 16))
+                .font(DesignSystem.Typography.bodyMedium())
                 .foregroundColor(DesignSystem.Colors.textTertiary)
             
             // Dream Pattern Chart
@@ -149,7 +124,7 @@ struct DreamPatternChart: View {
                     .fill(dreamData.indices.contains(day) && dreamData[day] 
                         ? DesignSystem.Colors.textPrimary 
                         : DesignSystem.Colors.textPrimary.opacity(0.2))
-                    .frame(width: 8, height: 8)
+                    .frame(width: DesignSystem.Sizes.iconSmall, height: DesignSystem.Sizes.iconSmall)
             }
         }
         .onAppear {
@@ -168,11 +143,11 @@ struct DreamInsightsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Tonight's Portal")
-                .font(.custom("Avenir-Heavy", size: 20))
-                .foregroundColor(.white)
+                .font(DesignSystem.Typography.headline())
+                .foregroundColor(DesignSystem.Colors.textPrimary)
             
             Text(message)
-                .font(.custom("Avenir-Book", size: 16))
+                .font(DesignSystem.Typography.bodySmall())
                 .foregroundColor(DesignSystem.Colors.textSecondary)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
@@ -180,7 +155,7 @@ struct DreamInsightsCard: View {
             if !recentSymbols.isEmpty {
                 HStack(spacing: 12) {
                     Text("Recent Symbols:")
-                        .font(.custom("Avenir-Medium", size: 14))
+                        .font(DesignSystem.Typography.captionMedium())
                         .foregroundColor(DesignSystem.Colors.textQuaternary)
                     
                     ForEach(recentSymbols, id: \.self) { symbol in
@@ -190,7 +165,7 @@ struct DreamInsightsCard: View {
                 }
             }
         }
-        .padding(24)
+        .padding(DesignSystem.Spacing.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 20)
@@ -211,8 +186,8 @@ struct EmotionalLandscapeView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Emotional Tides")
-                .font(.custom("Avenir-Heavy", size: 20))
-                .foregroundColor(.white)
+                .font(DesignSystem.Typography.headline())
+                .foregroundColor(DesignSystem.Colors.textPrimary)
                 .padding(.horizontal, 24)
             
             // Wave chart placeholder
@@ -244,8 +219,8 @@ struct DreamStatisticsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Dream Insights")
-                .font(.custom("Avenir-Heavy", size: 20))
-                .foregroundColor(.white)
+                .font(DesignSystem.Typography.headline())
+                .foregroundColor(DesignSystem.Colors.textPrimary)
             
             VStack(spacing: 16) {
                 StatRow(label: "Total Dreams", value: "\(statistics.totalDreams)")
@@ -254,26 +229,26 @@ struct DreamStatisticsView: View {
                 if !statistics.topThemes.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Dream Themes")
-                            .font(.custom("Avenir-Medium", size: 16))
+                            .font(DesignSystem.Typography.bodyMedium())
                             .foregroundColor(DesignSystem.Colors.textTertiary)
                         
                         ForEach(statistics.topThemes) { theme in
                             HStack {
                                 Text(theme.name)
-                                    .font(.custom("Avenir-Book", size: 14))
+                                    .font(DesignSystem.Typography.caption())
                                     .foregroundColor(DesignSystem.Colors.textQuaternary)
                                 
                                 Spacer()
                                 
                                 Text("\(theme.percentage)%")
-                                    .font(.custom("Avenir-Medium", size: 14))
+                                    .font(DesignSystem.Typography.captionMedium())
                                     .foregroundColor(DesignSystem.Colors.textSecondary)
                             }
                         }
                     }
                 }
             }
-            .padding(24)
+            .padding(DesignSystem.Spacing.cardPadding)
             .background(
                 RoundedRectangle(cornerRadius: 20)
                     .fill(DesignSystem.Colors.cardBackground)
@@ -289,14 +264,14 @@ struct StatRow: View {
     var body: some View {
         HStack {
             Text(label)
-                .font(.custom("Avenir-Book", size: 16))
+                .font(DesignSystem.Typography.bodySmall())
                 .foregroundColor(DesignSystem.Colors.textTertiary)
             
             Spacer()
             
             Text(value)
-                .font(.custom("Avenir-Medium", size: 16))
-                .foregroundColor(.white)
+                .font(DesignSystem.Typography.bodyMedium())
+                .foregroundColor(DesignSystem.Colors.textPrimary)
         }
     }
 }

@@ -18,6 +18,7 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
     public var summary: String?
     public var additionalInfo: String?
     public var analysis: String?
+    public var expandedAnalysis: String?
     
     enum CodingKeys: String, CodingKey {
         case id, created_at, title, transcript, segments, state
@@ -25,6 +26,7 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
         case summary
         case additionalInfo  = "additional_info"
         case analysis
+        case expandedAnalysis = "expanded_analysis"
     }
 
     public init(
@@ -37,7 +39,8 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
         videoS3Key: String? = nil,
         summary: String? = nil,
         additionalInfo: String? = nil,
-        analysis: String? = nil
+        analysis: String? = nil,
+        expandedAnalysis: String? = nil
     ) {
         self.id = id
         self.created_at = created_at
@@ -49,6 +52,7 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
         self.summary = summary
         self.additionalInfo = additionalInfo
         self.analysis = analysis
+        self.expandedAnalysis = expandedAnalysis
     }
 
     // MARK: Codable
@@ -68,6 +72,7 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
         summary    = try c.decodeIfPresent(String.self, forKey: .summary)
         additionalInfo = try c.decodeIfPresent(String.self, forKey: .additionalInfo)
         analysis   = try c.decodeIfPresent(String.self, forKey: .analysis)
+        expandedAnalysis = try c.decodeIfPresent(String.self, forKey: .expandedAnalysis)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -82,6 +87,7 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
         try c.encodeIfPresent(summary, forKey: .summary)
         try c.encodeIfPresent(additionalInfo, forKey: .additionalInfo)
         try c.encodeIfPresent(analysis, forKey: .analysis)
+        try c.encodeIfPresent(expandedAnalysis, forKey: .expandedAnalysis)
     }
 }
 

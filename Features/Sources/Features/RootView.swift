@@ -197,17 +197,17 @@ public struct RootView: View {                      // ← public
                                 endRadius: 60
                             )
                         )
-                        .frame(width: 120, height: 120)
+                        .frame(width: DesignSystem.Sizes.profileImageMedium, height: DesignSystem.Sizes.profileImageMedium)
                         .overlay(
                             Image(systemName: "moon.stars.fill")
                                 .font(.system(size: 48))
-                                .foregroundColor(.white)
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
                         )
                         .shadow(color: DesignSystem.Colors.ember.opacity(0.6), radius: 30)
                     
                     ProgressView("Loading…")
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .foregroundColor(.white)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
                 }
             }
         } else if auth.needsOnboarding {
@@ -265,19 +265,19 @@ struct SignInView: View {
                             .foregroundColor(DesignSystem.Colors.ember)
                         
                         Text("Dream")
-                            .font(.custom("Avenir-Heavy", size: 42))
-                            .foregroundColor(.white)
+                            .font(DesignSystem.Typography.largeTitle())
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
                     }
                     
                     // Welcome message
                     VStack(spacing: 16) {
                         Text("Capture the wisdom of your sleep")
-                            .font(.custom("Avenir-Medium", size: 24))
-                            .foregroundColor(.white)
+                            .font(DesignSystem.Typography.title3())
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
                             .multilineTextAlignment(.center)
                         
                         Text("Record your dreams the moment you wake,\nand discover their hidden meanings")
-                            .font(.custom("Avenir-Book", size: 18))
+                            .font(DesignSystem.Typography.body())
                             .foregroundColor(DesignSystem.Colors.textSecondary)
                             .multilineTextAlignment(.center)
                             .lineSpacing(4)
@@ -319,9 +319,9 @@ struct GoogleSignInButton: View {
                     .font(.system(size: 18, weight: .medium))
                 
                 Text("Continue with Google")
-                    .font(.custom("Avenir-Medium", size: 18))
+                    .font(DesignSystem.Typography.subheadline())
             }
-            .foregroundColor(.white)
+            .foregroundColor(DesignSystem.Colors.textPrimary)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
             .background(
@@ -385,8 +385,8 @@ struct OnboardingPlaceholderView: View {
                     Button("Skip") {
                         auth.completeOnboarding()
                     }
-                    .font(.custom("Avenir-Book", size: 16))
-                    .foregroundColor(.white.opacity(0.7))
+                    .font(DesignSystem.Typography.bodySmall())
+                    .foregroundColor(DesignSystem.Colors.textTertiary)
                     .padding(.top, 20)
                     .padding(.trailing, 24)
                 }
@@ -404,7 +404,7 @@ struct OnboardingPlaceholderView: View {
                     ForEach(0..<totalPages, id: \.self) { index in
                         Circle()
                             .fill(index == currentPage ? DesignSystem.Colors.ember : DesignSystem.Colors.textPrimary.opacity(0.3))
-                            .frame(width: 8, height: 8)
+                            .frame(width: DesignSystem.Sizes.iconSmall, height: DesignSystem.Sizes.iconSmall)
                             .animation(.easeInOut(duration: 0.3), value: currentPage)
                     }
                 }
@@ -534,13 +534,13 @@ struct OnboardingScreen1: View {
             
             VStack(spacing: 16) {
                 Text("Dreams hold latent magic")
-                    .font(.custom("Avenir-Heavy", size: 32))
-                    .foregroundColor(.white)
+                    .font(DesignSystem.Typography.title1())
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
                     .multilineTextAlignment(.center)
                 
                 Text("Every night, your mind weaves stories only you can tell—filled with hidden wisdom, memories, and pieces of yourself waiting to be discovered.")
-                    .font(.custom("Avenir-Book", size: 18))
-                    .foregroundColor(.white.opacity(0.8))
+                    .font(DesignSystem.Typography.body())
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
             }
@@ -557,19 +557,19 @@ struct OnboardingScreen2: View {
             
             VStack(spacing: 16) {
                 Text("Your brain dreams for 2 hours every night")
-                    .font(.custom("Avenir-Heavy", size: 28))
-                    .foregroundColor(.white)
+                    .font(DesignSystem.Typography.title2())
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
                     .multilineTextAlignment(.center)
                 
                 Text("Studies show people who record their dreams report 23% better self-awareness and emotional processing.")
-                    .font(.custom("Avenir-Medium", size: 18))
+                    .font(DesignSystem.Typography.subheadline())
                     .foregroundColor(DesignSystem.Colors.ember.opacity(0.9))
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
                 
                 Text("Dreams help consolidate memories and work through emotions while you sleep.")
-                    .font(.custom("Avenir-Book", size: 16))
-                    .foregroundColor(.white.opacity(0.7))
+                    .font(DesignSystem.Typography.bodySmall())
+                    .foregroundColor(DesignSystem.Colors.textTertiary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
             }
@@ -586,19 +586,19 @@ struct OnboardingScreen3: View {
             
             VStack(spacing: 16) {
                 Text("Dreams are stories only your brain can tell")
-                    .font(.custom("Avenir-Heavy", size: 28))
-                    .foregroundColor(.white)
+                    .font(DesignSystem.Typography.title2())
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
                     .multilineTextAlignment(.center)
                 
                 Text("82% of couples who share dreams report feeling more emotionally connected.")
-                    .font(.custom("Avenir-Medium", size: 18))
+                    .font(DesignSystem.Typography.subheadline())
                     .foregroundColor(DesignSystem.Colors.ember.opacity(0.9))
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
                 
                 Text("For centuries, humans have gathered around fires to share the visions of sleep—intimate glimpses into our inner worlds.")
-                    .font(.custom("Avenir-Book", size: 16))
-                    .foregroundColor(.white.opacity(0.7))
+                    .font(DesignSystem.Typography.bodySmall())
+                    .foregroundColor(DesignSystem.Colors.textTertiary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
             }
@@ -617,13 +617,13 @@ struct OnboardingScreen4: View {
             
             VStack(spacing: 16) {
                 Text("Ready to unlock your inner wisdom?")
-                    .font(.custom("Avenir-Heavy", size: 28))
-                    .foregroundColor(.white)
+                    .font(DesignSystem.Typography.title2())
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
                     .multilineTextAlignment(.center)
                 
                 Text("Record your dreams anytime—morning, midnight, or whenever inspiration strikes. We'll help you discover patterns and meanings.")
-                    .font(.custom("Avenir-Book", size: 18))
-                    .foregroundColor(.white.opacity(0.8))
+                    .font(DesignSystem.Typography.body())
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
             }
@@ -631,8 +631,8 @@ struct OnboardingScreen4: View {
             Button("Start Your Dream Journey") {
                 auth.completeOnboarding()
             }
-            .font(.custom("Avenir-Medium", size: 18))
-            .foregroundColor(.white)
+            .font(DesignSystem.Typography.subheadline())
+            .foregroundColor(DesignSystem.Colors.textPrimary)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
             .background(

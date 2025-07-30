@@ -95,12 +95,12 @@ public class ProfileViewModel: ObservableObject {
     // MARK: - Emotional Data
     
     private func generateEmotionalData() -> [EmotionData] {
-        // For MVP, generate sample wave data
+        // For MVP, generate sample wave data using design system colors
         // Later: analyze dream emotions
         return [
-            EmotionData(name: "Joy", color: "FFD700", intensity: 0.7, phase: 0),
-            EmotionData(name: "Wonder", color: "87CEEB", intensity: 0.5, phase: 1),
-            EmotionData(name: "Peace", color: "98FB98", intensity: 0.3, phase: 2)
+            EmotionData(name: "Joy", color: "FF9100", intensity: 0.7, phase: 0), // ember
+            EmotionData(name: "Wonder", color: "800080", intensity: 0.5, phase: 1), // systemPurple
+            EmotionData(name: "Peace", color: "8BC34A", intensity: 0.3, phase: 2) // systemGreen
         ]
     }
     
@@ -152,14 +152,12 @@ public struct DreamArchetype: Sendable {
     let id: String
     let name: String
     let symbol: String
-    let colors: [String]
     let messages: [String]
     
     static let starweaver = DreamArchetype(
         id: "starweaver",
         name: "Starweaver",
         symbol: "🌟",
-        colors: ["5B2C6F", "FFD700"],
         messages: [
             "Symbols dance through your sleep tonight",
             "Your dreams weave stories yet untold",
@@ -173,7 +171,6 @@ public struct DreamArchetype: Sendable {
         id: "moonwalker",
         name: "Moonwalker",
         symbol: "🌙",
-        colors: ["C0C0C0", "191970"],
         messages: [
             "New paths await in tonight's journey",
             "Your dream feet know ancient roads",
@@ -187,7 +184,6 @@ public struct DreamArchetype: Sendable {
         id: "soulkeeper",
         name: "Soulkeeper",
         symbol: "💫",
-        colors: ["008B8B", "FFB6C1"],
         messages: [
             "Deep waters reflect your inner truth",
             "Emotions rise like tides in sleep",
@@ -201,7 +197,6 @@ public struct DreamArchetype: Sendable {
         id: "timeseeker",
         name: "Timeseeker",
         symbol: "⏳",
-        colors: ["FFBF00", "CD7F32"],
         messages: [
             "Past and future merge in dreams",
             "Time bends within your sleeping mind",
@@ -215,7 +210,6 @@ public struct DreamArchetype: Sendable {
         id: "shadowmender",
         name: "Shadowmender",
         symbol: "🌑",
-        colors: ["4B0082", "36454F"],
         messages: [
             "Darkness holds your greatest strength",
             "Fear becomes wisdom in your dreams",
@@ -229,7 +223,6 @@ public struct DreamArchetype: Sendable {
         id: "lightbringer",
         name: "Lightbringer",
         symbol: "☀️",
-        colors: ["A8C3BC", "FFCCCB"],
         messages: [
             "Joy illuminates your dream path",
             "You carry dawn within your rest",

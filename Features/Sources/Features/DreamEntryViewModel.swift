@@ -28,6 +28,9 @@ public final class DreamEntryViewModel: ObservableObject {
     @Published var editedSummary: String = ""
     @Published var statusMessage: String?       // For progress updates
     @Published var errorAction: ErrorAction?    // What action user can take
+    @Published var shareText: String?           // Generated shareable text
+    @Published var isExpandingAnalysis = false  // Loading state for expanded analysis
+    @Published var expandedAnalysisMessage: String? // Loading message
 
     // ──────────────────────────────────────────────────────────────
     //  Private bits
@@ -190,6 +193,129 @@ public final class DreamEntryViewModel: ObservableObject {
             self.isEditMode = false
             self.editedTitle = ""
             self.editedSummary = ""
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    //  Sharing functionality
+    // ──────────────────────────────────────────────────────────────
+    @MainActor
+    func generateShareText() {
+        let intros = [
+            "Hey! I wanted to share this dream I had - it was so vivid:",
+            "I had the most incredible dream last night:",
+            "You have to hear about this dream I just had:",
+            "I had such an interesting dream - thought you'd find it fascinating:",
+            "Just woke up from the most amazing dream:",
+            "Had this wild dream that I can't stop thinking about:",
+            "I had a dream that felt so real - wanted to share it with you:",
+            "This dream was too good not to share:",
+            "You know how sometimes dreams stay with you? Had one of those:",
+            "I rarely remember my dreams, but this one was so vivid:"
+        ]
+        
+        let randomIntro = intros.randomElement() ?? intros[0]
+        
+        let title = dream.title.isEmpty ? "Untitled Dream" : dream.title
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MMMM d, yyyy"
+        let formattedDate = dateFormatter.string(from: dream.created_at)
+        
+        // Get summary or fallback to transcript
+        let content = dream.summary ?? dream.transcript ?? "A mysterious dream..."
+        
+        // Truncate content if too long for sharing
+        let maxContentLength = 200
+        let truncatedContent = content.count > maxContentLength ? 
+            String(content.prefix(maxContentLength)) + "..." : content
+        
+        // For now, use a placeholder URL - this will need backend implementation
+        let shareURL = "https://dreamapp.com/shared/\(dream.id)"
+        
+        let shareText = """
+        \(randomIntro)
+
+        🌙 \(title) (\(formattedDate))
+
+        \(truncatedContent)
+
+        Check out the full dream and interpretation: \(shareURL)
+        """
+        
+        self.shareText = shareText
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    //  Expanded Analysis functionality
+    // ──────────────────────────────────────────────────────────────
+    func requestExpandedAnalysis() async {
+        guard self.dream.analysis != nil else { 
+            print("DEBUG: No initial analysis available for expanded analysis")
+            return 
+        }
+        
+        // Check if expanded analysis already exists
+        if self.dream.expandedAnalysis != nil {
+            print("DEBUG: Expanded analysis already exists")
+            return
+        }
+        
+        let expandingMessages = [
+            "Expanding analysis...",
+            "Exploring deeper meanings...",
+            "Uncovering hidden symbols...",
+            "Diving into psychological themes...",
+            "Examining emotional connections...",
+            "Analyzing symbolic patterns...",
+            "Connecting dream elements...",
+            "Revealing deeper insights...",
+            "Exploring personal significance...",
+            "Unraveling dream layers..."
+        ]
+        
+        self.isExpandingAnalysis = true
+        self.expandedAnalysisMessage = expandingMessages.randomElement()
+        
+        // Rotate loading messages every 3 seconds
+        let messageTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+            DispatchQueue.main.async {
+                if self.isExpandingAnalysis {
+                    self.expandedAnalysisMessage = expandingMessages.randomElement()
+                }
+            }
+        }
+        
+        defer { 
+            self.isExpandingAnalysis = false
+            self.expandedAnalysisMessage = nil
+            messageTimer.invalidate()
+        }
+
+        do {
+            print("DEBUG: calling requestExpandedAnalysis")
+            try await self.store.requestExpandedAnalysis(for: self.dream.id)
+            print("DEBUG: requestExpandedAnalysis completed, refreshing...")
+            
+            // Poll for the expanded analysis (similar to interpret method)
+            let maxAttempts = 30
+            let pollInterval: Duration = .seconds(2)
+            
+            for attempt in 1...maxAttempts {
+                print("DEBUG: Poll attempt \(attempt)/\(maxAttempts) for expanded analysis")
+                try await Task.sleep(for: pollInterval)
+                await self.refresh()
+                
+                if self.dream.expandedAnalysis != nil {
+                    print("DEBUG: Expanded analysis found on attempt \(attempt)!")
+                    break
+                }
+            }
+            
+            if self.dream.expandedAnalysis == nil {
+                print("ERROR: Expanded analysis timed out")
+            }
+        } catch {
+            print("DEBUG: requestExpandedAnalysis error: \(error)")
         }
     }
 

@@ -54,7 +54,7 @@ struct VideoPlayerView: View {
                                 .font(.caption2)
                                 .foregroundColor(DesignSystem.Colors.textSecondary)
                         }
-                        .padding(8)
+                        .padding(DesignSystem.Spacing.xxSmall)
                         .background(DesignSystem.Colors.backgroundPrimary.opacity(0.7))
                         .cornerRadius(8)
                         
@@ -65,7 +65,7 @@ struct VideoPlayerView: View {
                         }
                         .font(.caption)
                         .foregroundColor(.white)
-                        .padding(8)
+                        .padding(DesignSystem.Spacing.xxSmall)
                         .background(DesignSystem.Colors.backgroundPrimary.opacity(0.7))
                         .cornerRadius(8)
                     }

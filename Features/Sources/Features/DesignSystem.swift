@@ -151,6 +151,11 @@ public enum DesignSystem {
         public static let screenHorizontalPadding: CGFloat = 32
         public static let buttonHorizontalPadding: CGFloat = 32
         public static let buttonVerticalPadding: CGFloat = 12
+        
+        // Component-specific spacing
+        public static let iconPadding: CGFloat = 6
+        public static let segmentSpacing: CGFloat = 8
+        public static let dreamCardSpacing: CGFloat = 16
     }
     
     // MARK: - Sizes
@@ -163,6 +168,14 @@ public enum DesignSystem {
         public static let smallComponentSize: CGFloat = 120
         public static let mediumComponentSize: CGFloat = 240
         public static let largeComponentSize: CGFloat = 300
+        
+        // Dream-specific component sizes
+        public static let dreamOrbSize: CGFloat = 300
+        public static let dreamOrbInner: CGFloat = 240
+        public static let dreamOrbIntermediate: CGFloat = 200
+        public static let profileImageLarge: CGFloat = 150
+        public static let profileImageMedium: CGFloat = 120
+        public static let iconSmall: CGFloat = 8
         
         // Icon sizes
         public static let dotSize: CGFloat = 8

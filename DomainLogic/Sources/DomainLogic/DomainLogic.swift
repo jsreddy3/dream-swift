@@ -40,6 +40,7 @@ public protocol DreamStore: Sendable {
     func getVideoURL(dreamID: UUID) async throws -> URL?
     func getDream(_ id: UUID) async throws -> Dream         // NEW
     func requestAnalysis(for id: UUID) async throws
+    func requestExpandedAnalysis(for id: UUID) async throws
     func deleteDream(_ id: UUID) async throws
     
     @discardableResult
@@ -49,5 +50,6 @@ public protocol DreamStore: Sendable {
 public extension DreamStore {
     // Make it optional for callers & for FileDreamStore.
     func requestAnalysis(for id: UUID) async throws { }
+    func requestExpandedAnalysis(for id: UUID) async throws { }
     func generateSummaryFallback(id: UUID, text: String) async throws {}
 }

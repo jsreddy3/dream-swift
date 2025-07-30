@@ -20,7 +20,7 @@ private struct ModeToggle: View {
             cell(.voice, label: "Voice")
             cell(.text,  label: "Text")
         }
-        .padding(4)
+        .padding(DesignSystem.Spacing.xxxSmall)
         .background(
             RoundedRectangle(cornerRadius: 22)
                 .fill(Color(.systemGray6))
@@ -81,28 +81,28 @@ public struct ContentView: View {
                 
                 VStack(spacing: 24) {
                     Text(label(for: vm.state))
-                    .font(.custom("Avenir-Medium", size: 30))
-                    .foregroundColor(.white)
+                    .font(DesignSystem.Typography.displayLarge())
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
                     .padding(.top, -50)
 
                 // Dream capture orb - matching profile aesthetic
                 ZStack {
                     Circle()
                         .fill(DesignSystem.Gradients.emberGlow)
-                        .frame(width: 300, height: 300)
+                        .frame(width: DesignSystem.Sizes.dreamOrbSize, height: DesignSystem.Sizes.dreamOrbSize)
                         .blur(radius: vm.state == .recording ? 20 : 10)
                         .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: vm.state)
                     
                     Circle()
                         .fill(DesignSystem.Gradients.darkOverlay)
-                        .frame(width: 240, height: 240)
+                        .frame(width: DesignSystem.Sizes.dreamOrbInner, height: DesignSystem.Sizes.dreamOrbInner)
                     
                     Image(systemName: vm.state == .recording ? "waveform" : "moon.stars.fill")
                         .font(.system(size: 80))
-                        .foregroundColor(.white)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
                         .symbolEffect(.pulse, value: vm.state == .recording)
                 }
-                .frame(width: 300, height: 300)
+                .frame(width: DesignSystem.Sizes.dreamOrbSize, height: DesignSystem.Sizes.dreamOrbSize)
                 
                 // Show mode toggle only when not recording AND (not clipped OR extending)
                 if vm.state != .recording && (vm.state != .clipped || vm.isExtending) {
@@ -118,7 +118,7 @@ public struct ContentView: View {
                             Button { vm.startOrStop() } label: {
                                 Image(systemName: icon(for: vm.state))
                                     .resizable()
-                                    .frame(width: 88, height: 88)
+                                    .frame(width: DesignSystem.Sizes.largeButtonHeight, height: DesignSystem.Sizes.largeButtonHeight)
                                     .foregroundStyle(color(for: vm.state))
                             }
                             .buttonStyle(.plain)
@@ -148,10 +148,10 @@ public struct ContentView: View {
                             vm.finish()
                         } label: {
                             Text("Complete Dream")
-                                .font(.custom("Avenir-Heavy", size: 18))
+                                .font(DesignSystem.Typography.subheadline())
                                 .padding(.horizontal, 32)
                                 .padding(.vertical, 12)
-                                .foregroundColor(.white)
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
                                 .background(
                                     Capsule()
                                         .fill(Color.accentColor)
@@ -163,7 +163,7 @@ public struct ContentView: View {
                             vm.extend()
                         } label: {
                             Text("Extend Dream")
-                                .font(.custom("Avenir-Heavy", size: 18))
+                                .font(DesignSystem.Typography.subheadline())
                                 .padding(.horizontal, 32)
                                 .padding(.vertical, 12)
                                 .foregroundColor(.secondary)

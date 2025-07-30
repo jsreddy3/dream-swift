@@ -75,7 +75,7 @@ struct DreamApp: App {
     var body: some Scene {
             WindowGroup {
                 RootView(auth: authBridge, captureVM: captureVM, libraryVM: libraryVM)
-                    .font(.custom("Avenir", size: 17))
+                    .font(DesignSystem.Typography.defaultFont())
                     .onAppear {
                         appDelegate.configure(store: store)
                         Task { await store.drain() }                   // <─ run once, right now

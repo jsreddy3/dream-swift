@@ -97,8 +97,8 @@ struct DreamLibraryView: View {
                             .background(
                                 LinearGradient(
                                     colors: [
-                                        Color.black.opacity(0.3),
-                                        Color.black.opacity(0.2)
+                                        DesignSystem.Colors.backgroundSecondary.opacity(0.95),
+                                        DesignSystem.Colors.backgroundSecondary.opacity(0.9)
                                     ],
                                     startPoint: .top,
                                     endPoint: .bottom
@@ -165,7 +165,7 @@ struct DreamLibraryView: View {
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.ember)
             }
-            .padding(16)
+            .padding(DesignSystem.Spacing.medium)
             .frame(maxWidth: .infinity, alignment: .leading)
             .glassCard(cornerRadius: DesignSystem.CornerRadius.medium)
             .dreamShadow()

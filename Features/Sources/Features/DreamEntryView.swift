@@ -16,17 +16,8 @@ struct DreamEntryView: View {
 
     var body: some View {
         ZStack {
-            // Background - matching profile page style
-            DesignSystem.Colors.backgroundPrimary.ignoresSafeArea()
-            
-            // Gradient overlay (warm and welcoming)
-            DesignSystem.Gradients.emberGradient
-                .ignoresSafeArea()
-            
-            // Animated stars background (brighter)
-            StarsBackgroundView()
-                .opacity(0.5)
-                .ignoresSafeArea()
+            // Background - use standard app background
+            DreamBackground()
             
             if let err = vm.errorMessage {
                     // ───────────── failed or timed-out ─────────────
@@ -66,17 +57,17 @@ struct DreamEntryView: View {
                         ZStack {
                             Circle()
                                 .fill(DesignSystem.Gradients.emberGlow)
-                                .frame(width: 240, height: 240)
+                                .frame(width: DesignSystem.Sizes.dreamOrbInner, height: DesignSystem.Sizes.dreamOrbInner)
                                 .blur(radius: 15)
                                 .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: vm.statusMessage)
                             
                             Circle()
                                 .fill(DesignSystem.Gradients.darkOverlay)
-                                .frame(width: 200, height: 200)
+                                .frame(width: DesignSystem.Sizes.dreamOrbIntermediate, height: DesignSystem.Sizes.dreamOrbIntermediate)
                             
                             Image(systemName: "sparkles")
                                 .font(.system(size: 60))
-                                .foregroundColor(.white)
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
                                 .symbolEffect(.pulse, value: vm.statusMessage)
                         }
                         Text(vm.statusMessage ?? "Interpreting your dream…")
@@ -120,7 +111,7 @@ struct DreamEntryView: View {
                                     .padding(.horizontal, 20)
                                     .padding(.vertical, 10)
                                     .background(Capsule().fill(Color.accentColor))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
                             }
                             .buttonStyle(.plain)
                         }
@@ -136,7 +127,7 @@ struct DreamEntryView: View {
                                     .font(DesignSystem.Typography.body())
                                     .foregroundColor(DesignSystem.Colors.textPrimary)
                                     .frame(minHeight: 120)
-                                    .padding(8)
+                                    .padding(DesignSystem.Spacing.xxSmall)
                                     .background(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium).fill(DesignSystem.Colors.cardBackground))
                             }
                         } else {
@@ -153,17 +144,46 @@ struct DreamEntryView: View {
 
                         // Analysis section (if available)
                         if let analysis = vm.dream.analysis {
-                            VStack(alignment: .leading, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 12) {
                                 Text("Interpretation")
                                     .font(DesignSystem.Typography.subheadline())
                                     .foregroundColor(DesignSystem.Colors.textSecondary)
-                                Text(analysis)
+                                
+                                // Show expanded analysis if available, otherwise show brief analysis
+                                Text(vm.dream.expandedAnalysis ?? analysis)
                                     .font(DesignSystem.Typography.body())
                                     .foregroundColor(DesignSystem.Colors.textPrimary)
+                                
+                                // Tell Me More button or loading state
+                                if vm.isExpandingAnalysis {
+                                    HStack {
+                                        ProgressView()
+                                            .scaleEffect(0.8)
+                                        Text(vm.expandedAnalysisMessage ?? "Expanding analysis...")
+                                            .font(DesignSystem.Typography.caption())
+                                            .foregroundColor(DesignSystem.Colors.textTertiary)
+                                    }
+                                } else if vm.dream.expandedAnalysis == nil {
+                                    Button {
+                                        Task {
+                                            await vm.requestExpandedAnalysis()
+                                        }
+                                    } label: {
+                                        Text("Tell Me More")
+                                            .font(DesignSystem.Typography.bodyMedium())
+                                            .foregroundColor(DesignSystem.Colors.ember)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 8)
+                                            .background(
+                                                Capsule()
+                                                    .stroke(DesignSystem.Colors.ember, lineWidth: 1)
+                                            )
+                                    }
+                                }
                             }
                         }
                     }
-                    .padding(24)
+                    .padding(DesignSystem.Spacing.cardPadding)
                 }
             }
 
@@ -178,17 +198,17 @@ struct DreamEntryView: View {
                         ZStack {
                             Circle()
                                 .fill(DesignSystem.Gradients.emberGlow)
-                                .frame(width: 240, height: 240)
+                                .frame(width: DesignSystem.Sizes.dreamOrbInner, height: DesignSystem.Sizes.dreamOrbInner)
                                 .blur(radius: 15)
                                 .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: vm.statusMessage)
                             
                             Circle()
                                 .fill(DesignSystem.Gradients.darkOverlay)
-                                .frame(width: 200, height: 200)
+                                .frame(width: DesignSystem.Sizes.dreamOrbIntermediate, height: DesignSystem.Sizes.dreamOrbIntermediate)
                             
                             Image(systemName: "sparkles")
                                 .font(.system(size: 60))
-                                .foregroundColor(.white)
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
                                 .symbolEffect(.pulse, value: vm.statusMessage)
                         }
                         
@@ -208,6 +228,41 @@ struct DreamEntryView: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            // Generate share text when view appears
+            if vm.shareText == nil {
+                vm.generateShareText()
+            }
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                if let shareText = vm.shareText {
+                    // Copy button
+                    Button {
+                        UIPasteboard.general.string = shareText
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                            .foregroundColor(DesignSystem.Colors.ember)
+                    }
+                    
+                    // Share button
+                    ShareLink(
+                        item: shareText,
+                        subject: Text(vm.dream.title.isEmpty ? "Dream" : vm.dream.title)
+                    ) {
+                        Image(systemName: "square.and.arrow.up")
+                            .foregroundColor(DesignSystem.Colors.ember)
+                    }
+                } else {
+                    Button {
+                        vm.generateShareText()
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                            .foregroundColor(DesignSystem.Colors.ember)
+                    }
+                }
+            }
+        }
     }
     
     // Format date as "Monday, December 25, 2024"
@@ -246,6 +301,7 @@ private struct CollapsibleText: View {
     }
 }
 
+
 // MARK: ‑ Preview --------------------------------------------------------
 
 #if DEBUG
@@ -280,4 +336,6 @@ private struct StubStore: DreamStore {
     func generateSummary(for id: UUID) async throws -> String { "" }
     func deleteDream(_ id: UUID) async throws {}
 }
+
+
 #endif
