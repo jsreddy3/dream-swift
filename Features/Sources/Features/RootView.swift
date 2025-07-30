@@ -1810,6 +1810,8 @@ struct OnboardingCompleteScreen: View {
             }
             
             Button("Begin Dream Capture") {
+                Haptics.success() // Onboarding complete haptic
+                
                 // Track onboarding completion
                 AnalyticsService.shared.trackDuration(
                     event: .onboardingCompleted,

@@ -218,7 +218,7 @@ public actor SyncingDreamStore: DreamStore, Sendable {
             #if DEBUG
             print("DEBUG: Calling remote.requestAnalysis with timeout protection")
             #endif
-            try await withTimeout(seconds: 15.0) { [self] in
+            try await withTimeout(seconds: 30.0) { [self] in
                 try await remote.requestAnalysis(for: id)
             }
         } else {
@@ -237,13 +237,14 @@ public actor SyncingDreamStore: DreamStore, Sendable {
             #if DEBUG
             print("DEBUG: Calling remote.requestExpandedAnalysis with timeout protection")
             #endif
-            try await withTimeout(seconds: 15.0) { [self] in
+            try await withTimeout(seconds: 30.0) { [self] in
                 try await remote.requestExpandedAnalysis(for: id)
             }
         } else {
             #if DEBUG
             print("DEBUG: Offline, can't do expanded analysis")
             #endif
+            throw SyncingDreamStoreError.timeout
         }
     }
 
@@ -469,6 +470,6 @@ internal enum PendingOp: Codable {
     case delete(UUID)
 }
 
-enum SyncingDreamStoreError: Error {
+public enum SyncingDreamStoreError: Error {
     case timeout
 }

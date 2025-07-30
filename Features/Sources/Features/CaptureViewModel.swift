@@ -122,6 +122,7 @@ public final class CaptureViewModel {
 
             order += 1
             segments.append(newSeg)
+            Haptics.medium() // Text segment saved
             try await refreshSegments()
 
             isTyping = false
@@ -185,8 +186,10 @@ public final class CaptureViewModel {
                 handle = try await cont(dreamID: dreamID!)
             }
             state = .recording
+            Haptics.medium() // Recording started
         } catch {
             state = .failed("Mic error: \(error.localizedDescription)")
+            Haptics.error() // Recording failed
         }
     }
         
@@ -199,8 +202,10 @@ public final class CaptureViewModel {
             try await refreshSegments()           // still reconciles if online
             isExtending = false                  // reset when we go back to clipped
             state = .clipped
+            Haptics.medium() // Recording stopped (segment saved)
         } catch {
             state = .failed("Stop error: \(error.localizedDescription)")
+            Haptics.error() // Recording stop failed
         }
     }
 
@@ -214,6 +219,7 @@ public final class CaptureViewModel {
             // Don't reset here - we might still extend this dream
             // Reset will happen when starting a new recording session
             state = .saved
+            Haptics.success() // Dream completed successfully
             
             // Mark first dream as completed (unless in debug mode)
             #if !DEBUG

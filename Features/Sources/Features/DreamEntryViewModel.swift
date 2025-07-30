@@ -310,12 +310,6 @@ public final class DreamEntryViewModel: ObservableObject {
                 }
             }
         }
-        
-        defer { 
-            self.isExpandingAnalysis = false
-            self.expandedAnalysisMessage = nil
-            messageTimer.invalidate()
-        }
 
         do {
             #if DEBUG
@@ -327,7 +321,7 @@ public final class DreamEntryViewModel: ObservableObject {
             #endif
             
             // Poll for the expanded analysis (similar to interpret method)
-            let maxAttempts = 30
+            let maxAttempts = 15  // 30 seconds total with 2 second intervals
             let pollInterval: Duration = .seconds(2)
             
             for attempt in 1...maxAttempts {
@@ -347,14 +341,42 @@ public final class DreamEntryViewModel: ObservableObject {
             
             if self.dream.expandedAnalysis == nil {
                 #if DEBUG
-                print("ERROR: Expanded analysis timed out")
+                print("ERROR: Expanded analysis timed out after polling")
                 #endif
             }
         } catch {
             #if DEBUG
             print("DEBUG: requestExpandedAnalysis error: \(error)")
             #endif
+            
+            // Check if it's a timeout error
+            if error is CancellationError || 
+               (error as? SyncingDreamStoreError) == .timeout ||
+               (error as? URLError)?.code == .timedOut {
+                // Continue polling in background even after timeout
+                Task.detached { [weak self] in
+                    guard let self else { return }
+                    
+                    // Poll for another 30 seconds in background
+                    for attempt in 1...15 {
+                        try? await Task.sleep(for: .seconds(2))
+                        await self.refresh()
+                        
+                        if await self.dream.expandedAnalysis != nil {
+                            #if DEBUG
+                            print("DEBUG: Expanded analysis found in background on attempt \(attempt)!")
+                            #endif
+                            break
+                        }
+                    }
+                }
+            }
         }
+        
+        // Clean up after async operation completes
+        self.isExpandingAnalysis = false
+        self.expandedAnalysisMessage = nil
+        messageTimer.invalidate()
     }
 
     // ──────────────────────────────────────────────────────────────

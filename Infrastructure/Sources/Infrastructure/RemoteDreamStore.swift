@@ -283,7 +283,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
             )
             print("DEBUG: Request created: \(req.url?.absoluteString ?? "no url")")
             print("DEBUG: About to perform request...")
-            try await perform(req)
+            try await performLongRunning(req)
             print("DEBUG: Request completed successfully")
         } catch {
             print("DEBUG: requestAnalysis error: \(error)")
@@ -300,7 +300,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
             )
             print("DEBUG: Expanded analysis request created: \(req.url?.absoluteString ?? "no url")")
             print("DEBUG: About to perform expanded analysis request...")
-            try await perform(req)
+            try await performLongRunning(req)
             print("DEBUG: Expanded analysis request completed successfully")
         } catch {
             print("DEBUG: requestExpandedAnalysis error: \(error)")
@@ -318,7 +318,7 @@ public actor RemoteDreamStore: DreamStore, Sendable {
             let title: String
             let summary: String 
         }
-        let result = try await decode(Envelope.self, from: req)
+        let result = try await decodeLongRunning(Envelope.self, from: req)
         
         // Since this is called by DreamStore protocol which expects just summary,
         // we need to update the title separately
@@ -557,8 +557,28 @@ public actor RemoteDreamStore: DreamStore, Sendable {
             case 200..<300:                       // success → just return
                 return
             case 404 where req.url?.path.hasSuffix("/finish") == true:
-                // Swallow “already finished / unknown ID”
-                print("Finish ignored: server doesn’t know this dream (404).")
+                // Swallow "already finished / unknown ID"
+                print("Finish ignored: server doesn't know this dream (404).")
+                return
+            default:
+                throw RemoteError.badStatus(http.statusCode, "")
+            }
+        }
+    }
+    
+    // Special version for long-running AI generation requests
+    private func performLongRunning(_ req: URLRequest) async throws {
+        // Create a custom session with longer timeout for AI operations
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 60.0  // 60 seconds for AI generation
+        config.timeoutIntervalForResource = 120.0 // 2 minutes total
+        let longSession = URLSession(configuration: config)
+        
+        let (data, resp) = try await longSession.data(for: req)
+
+        if let http = resp as? HTTPURLResponse {
+            switch http.statusCode {
+            case 200..<300:                       // success → just return
                 return
             default:
                 throw RemoteError.badStatus(http.statusCode, "")
@@ -587,6 +607,28 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         from req: URLRequest
     ) async throws -> R {
         let (data, resp) = try await session.data(for: req)
+        guard let http = resp as? HTTPURLResponse,
+              200..<300 ~= http.statusCode else {
+            throw RemoteError.badStatus(
+                (resp as? HTTPURLResponse)?.statusCode ?? -1,
+                String(data: data, encoding: .utf8) ?? ""
+            )
+        }
+        return try decoder.decode(R.self, from: data)
+    }
+    
+    // Special version for long-running AI generation requests that return data
+    private func decodeLongRunning<R: Decodable>(
+        _ type: R.Type,
+        from req: URLRequest
+    ) async throws -> R {
+        // Create a custom session with longer timeout for AI operations
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 60.0  // 60 seconds for AI generation
+        config.timeoutIntervalForResource = 120.0 // 2 minutes total
+        let longSession = URLSession(configuration: config)
+        
+        let (data, resp) = try await longSession.data(for: req)
         guard let http = resp as? HTTPURLResponse,
               200..<300 ~= http.statusCode else {
             throw RemoteError.badStatus(

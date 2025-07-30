@@ -92,7 +92,7 @@ struct FirstDreamCelebrationView: View {
             AnalyticsService.shared.track(.firstDreamCelebrationShown)
             
             // Haptic feedback
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            Haptics.success() // Celebration haptic
         }
         .fullScreenCover(isPresented: $showNotificationSetup) {
             FirstDreamNotificationSetupView(isPresented: $showNotificationSetup, wakeTime: wakeTime)

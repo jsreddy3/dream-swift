@@ -150,9 +150,13 @@ struct DreamEntryView: View {
                                     .foregroundColor(DesignSystem.Colors.textSecondary)
                                 
                                 // Show expanded analysis if available, otherwise show brief analysis
-                                Text(vm.dream.expandedAnalysis ?? analysis)
-                                    .font(DesignSystem.Typography.body())
-                                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                                if let expandedAnalysis = vm.dream.expandedAnalysis {
+                                    FormattedAnalysisView(analysisText: expandedAnalysis)
+                                } else {
+                                    Text(analysis)
+                                        .font(DesignSystem.Typography.body())
+                                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                                }
                                 
                                 // Tell Me More button or loading state
                                 if vm.isExpandingAnalysis {
@@ -165,6 +169,7 @@ struct DreamEntryView: View {
                                     }
                                 } else if vm.dream.expandedAnalysis == nil {
                                     Button {
+                                        Haptics.light() // Tell Me More tap
                                         Task {
                                             await vm.requestExpandedAnalysis()
                                         }
@@ -240,6 +245,7 @@ struct DreamEntryView: View {
                     // Copy button
                     Button {
                         UIPasteboard.general.string = shareText
+                        Haptics.light() // Copy feedback
                     } label: {
                         Image(systemName: "doc.on.doc")
                             .foregroundColor(DesignSystem.Colors.ember)
@@ -298,6 +304,68 @@ private struct CollapsibleText: View {
             }
         }
         .dreamCardStyle()
+    }
+}
+
+// MARK: ‑ FormattedAnalysisView ------------------------------------------
+
+private struct FormattedAnalysisView: View {
+    let analysisText: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            ForEach(parseAnalysisSections(from: analysisText), id: \.title) { section in
+                VStack(alignment: .leading, spacing: 6) {
+                    if !section.title.isEmpty {
+                        Text(section.title)
+                            .font(DesignSystem.Typography.bodyMedium())
+                            .foregroundColor(DesignSystem.Colors.ember)
+                    }
+                    Text(section.content)
+                        .font(DesignSystem.Typography.body())
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                }
+            }
+        }
+    }
+    
+    private func parseAnalysisSections(from text: String) -> [(title: String, content: String)] {
+        var sections: [(title: String, content: String)] = []
+        let lines = text.components(separatedBy: .newlines)
+        
+        var currentTitle = ""
+        var currentContent = ""
+        
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            
+            if trimmed.hasPrefix("##") {
+                // Save previous section if exists
+                if !currentContent.isEmpty {
+                    sections.append((title: currentTitle, content: currentContent.trimmingCharacters(in: .whitespacesAndNewlines)))
+                }
+                // Start new section
+                currentTitle = trimmed.replacingOccurrences(of: "##", with: "").trimmingCharacters(in: .whitespaces)
+                currentContent = ""
+            } else if !trimmed.isEmpty {
+                if !currentContent.isEmpty {
+                    currentContent += " "
+                }
+                currentContent += trimmed
+            }
+        }
+        
+        // Add the last section
+        if !currentContent.isEmpty {
+            sections.append((title: currentTitle, content: currentContent.trimmingCharacters(in: .whitespacesAndNewlines)))
+        }
+        
+        // If no sections were found (no markdown headers), treat the whole text as one section
+        if sections.isEmpty && !text.isEmpty {
+            sections.append((title: "", content: text))
+        }
+        
+        return sections
     }
 }
 

@@ -97,6 +97,7 @@ struct DreamLibraryView: View {
                                 .padding(.top, dream.id == sortedDreams.first?.id ? 8 : 0)
                                 .contextMenu {
                                     Button(role: .destructive) {
+                                        Haptics.warning() // Delete warning haptic
                                         Task { await vm.deleteDream(dream.id) }
                                     } label: {
                                         Label("Delete", systemImage: "trash")
@@ -129,6 +130,10 @@ struct DreamLibraryView: View {
                     }
                 }
             }
+        }
+        .refreshable {
+            Haptics.medium() // Pull-to-refresh haptic
+            await vm.refresh()
         }
     }
     
