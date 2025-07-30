@@ -28,7 +28,10 @@ public final class DreamLibraryViewModel: ObservableObject {
             let all = try await store.allDreams()
             guard !Task.isCancelled else { return }
             
-            self.dreams = all
+            // Sort dreams by created_at date, newest first
+            self.dreams = all.sorted { (dream1: Dream, dream2: Dream) in
+                dream1.created_at > dream2.created_at
+            }
             refreshError = nil
         } catch {
             guard !Task.isCancelled else { return }

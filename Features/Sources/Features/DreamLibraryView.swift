@@ -61,19 +61,40 @@ struct DreamLibraryView: View {
     private var dreamList: some View {
         let sectioned = groupDreamsByDate(vm.dreams)
         
+        // Sort section keys properly with special handling for Today/Yesterday
+        let sortedKeys = sectioned.keys.sorted { key1, key2 in
+            // Special cases for Today and Yesterday
+            if key1 == "Today" { return true }
+            if key2 == "Today" { return false }
+            if key1 == "Yesterday" && key2 != "Today" { return true }
+            if key2 == "Yesterday" && key1 != "Today" { return false }
+            
+            // For all other cases, we need to compare the actual dates
+            // Find the first dream in each section to get the date
+            if let dream1 = sectioned[key1]?.first,
+               let dream2 = sectioned[key2]?.first {
+                return dream1.created_at > dream2.created_at
+            }
+            
+            // Fallback to string comparison
+            return key1 > key2
+        }
+        
         return ScrollView {
             LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
-                ForEach(sectioned.keys.sorted(by: >), id: \.self) { key in
+                ForEach(sortedKeys, id: \.self) { key in
                     if let dreamGroup = sectioned[key] {
+                        // Sort dreams within each section by created_at, newest first
+                        let sortedDreams = dreamGroup.sorted { $0.created_at > $1.created_at }
                         Section {
-                            ForEach(dreamGroup) { dream in
+                            ForEach(sortedDreams) { dream in
                                 NavigationLink(value: dream) {
                                     DreamCardView(dream: dream)
                                 }
                                 .buttonStyle(PlainButtonStyle())
                                 .padding(.horizontal, 20)
                                 .padding(.vertical, 8)
-                                .padding(.top, dream.id == dreamGroup.first?.id ? 8 : 0)
+                                .padding(.top, dream.id == sortedDreams.first?.id ? 8 : 0)
                                 .contextMenu {
                                     Button(role: .destructive) {
                                         Task { await vm.deleteDream(dream.id) }

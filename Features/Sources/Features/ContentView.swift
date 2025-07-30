@@ -104,8 +104,8 @@ public struct ContentView: View {
                 }
                 .frame(width: DesignSystem.Sizes.dreamOrbSize, height: DesignSystem.Sizes.dreamOrbSize)
                 
-                // Show mode toggle only when not recording AND (not clipped OR extending)
-                if vm.state != .recording && (vm.state != .clipped || vm.isExtending) {
+                // Show mode toggle only when not recording/saving/saved AND (not clipped OR extending)
+                if vm.state != .recording && vm.state != .saving && vm.state != .saved && (vm.state != .clipped || vm.isExtending) {
                     ModeToggle(selection: $mode, disabled: false)
                         .transition(.opacity)
                 }

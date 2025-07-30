@@ -112,6 +112,7 @@ public struct UserPreferences: Sendable, Codable {
     public let personalityTraits: [String: String]
     public let onboardingCompleted: Bool
     
+    
     // Timestamps
     public let createdAt: Date?
     public let updatedAt: Date?
@@ -178,6 +179,7 @@ public struct UserPreferences: Sendable, Codable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
+    
 }
 
 public struct ArchetypeSuggestion: Sendable, Codable {

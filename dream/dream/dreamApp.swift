@@ -51,6 +51,15 @@ struct DreamApp: App {
                 try? await sharedAuth.ensureGoogleUserLoaded()
             }
         
+        // Initialize analytics
+        #if DEBUG
+        // Use same key for debug builds (you can change this to a test project later)
+        AnalyticsService.shared.configure(apiKey: "phc_AYQdBPNqxWZoayFaPpFzaPeg3XKZ8rOU3resSW6jj17")
+        #else
+        // Use production key for release builds
+        AnalyticsService.shared.configure(apiKey: "phc_AYQdBPNqxWZoayFaPpFzaPeg3XKZ8rOU3resSW6jj17")
+        #endif
+        
         let local  = FileDreamStore()
         let remote = RemoteDreamStore(
             baseURL: Config.apiBase,
@@ -80,6 +89,12 @@ struct DreamApp: App {
                         appDelegate.configure(store: store)
                         Task { await store.drain() }                   // <─ run once, right now
                         Task { await libraryVM.refresh() }             // <─ preload library data
+                        
+                        // Track app launch
+                        AnalyticsService.shared.track(.appLaunched, properties: [
+                            "has_jwt": authBridge.jwt != nil,
+                            "launch_type": authBridge.jwt != nil ? "returning" : "new"
+                        ])
                     }
             }
             .onChange(of: phase) { oldPhase, newPhase in

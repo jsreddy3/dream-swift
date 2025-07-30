@@ -1,7 +1,7 @@
 //  RootView.swift     (Features)
 
 import SwiftUI
-import Infrastructure          // for AuthStore, SyncingDreamStore
+import Infrastructure          // for AuthStore, SyncingDreamStore, AnalyticsService
 import DomainLogic             // for CaptureViewModel
 import CoreModels              // for shared types, UserPreferences, ArchetypeSuggestion
 import Configuration           // for Config.forceOnboardingForTesting
@@ -14,7 +14,7 @@ public final class AuthBridge: ObservableObject {
     private let backend: AuthStore
     let store: SyncingDreamStore?  // Made internal for access
     @Published var isAuthenticating = false   // ⟵ add this
-    @Published var jwt: String?          // UI can react to this
+    @Published public var jwt: String?          // UI can react to this
     @Published var needsOnboarding = false    // ⟵ onboarding state
     @Published var isCheckingOnboarding = false  // ⟵ loading state for onboarding check
 
@@ -48,6 +48,13 @@ public final class AuthBridge: ObservableObject {
             await MainActor.run { 
                 jwt = backend.jwt                       // immediate UI update
                 isCheckingOnboarding = true             // start onboarding check
+                
+                // Track successful sign in
+                if let jwt = backend.jwt {
+                    AnalyticsService.shared.track(.signInCompleted)
+                    // TODO: Extract user ID from JWT and identify user
+                    // AnalyticsService.shared.identify(userId: extractUserIdFromJWT(jwt))
+                }
             }
             
             // Check if user needs onboarding
@@ -59,6 +66,10 @@ public final class AuthBridge: ObservableObject {
             #if DEBUG
             print("Google sign-in failed: \(error)")
             #endif
+            // Track sign in failure
+            AnalyticsService.shared.track(.signInFailed, properties: [
+                "error": String(describing: error)
+            ])
         }
     }
     
@@ -172,6 +183,10 @@ public final class AuthBridge: ObservableObject {
     
     @MainActor
     func signOut() {
+        // Track sign out
+        AnalyticsService.shared.track(.signOutCompleted)
+        AnalyticsService.shared.reset()  // Clear user identity
+        
         Task {                                  // hop off the main thread
             await backend.signOut()
             await MainActor.run { jwt = nil }   // make UI react instantly
@@ -318,6 +333,9 @@ struct GoogleSignInButton: View {
     
     var body: some View {
         Button {
+            // Track sign in started
+            AnalyticsService.shared.track(.signInStarted)
+            
             // Get the current window's root view controller
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                let window = windowScene.windows.first,
@@ -352,8 +370,24 @@ struct OnboardingPlaceholderView: View {
     @State private var userPreferences = UserPreferences()
     @State private var suggestedArchetype: ArchetypeSuggestion?
     @State private var isSubmittingPreferences = false
+    @State private var onboardingStartTime = Date()
+    @State private var hasTrackedStart = false
+    @State private var journeyTracker = OnboardingJourneyTracker()
     
     private let totalPages = 7
+    
+    private func getPageName(for page: Int) -> String {
+        switch page {
+        case 0: return "welcome"
+        case 1: return "sleep_patterns"
+        case 2: return "dream_patterns"
+        case 3: return "goals_interests"
+        case 4: return "notifications"
+        case 5: return "archetype_reveal"
+        case 6: return "complete"
+        default: return "unknown"
+        }
+    }
     
     var body: some View {
         ZStack {
@@ -381,6 +415,15 @@ struct OnboardingPlaceholderView: View {
                     Spacer()
                     
                     Button("Skip") {
+                        AnalyticsService.shared.track(.onboardingSkipped, properties: [
+                            "skipped_at_page": currentPage + 1,
+                            "page_name": getPageName(for: currentPage)
+                        ])
+                        
+                        // Track skip in journey
+                        journeyTracker.trackNavigation(action: "skip", fromPage: currentPage + 1)
+                        journeyTracker.completeJourney(skipped: true, skippedAtPage: currentPage + 1)
+                        
                         auth.completeOnboarding()
                     }
                     .font(DesignSystem.Typography.bodySmall())
@@ -397,7 +440,8 @@ struct OnboardingPlaceholderView: View {
                     auth: auth,
                     userPreferences: $userPreferences,
                     suggestedArchetype: suggestedArchetype,
-                    onPreferencesSubmit: submitPreferences
+                    onPreferencesSubmit: submitPreferences,
+                    onboardingStartTime: onboardingStartTime
                 )
                 .opacity(contentOpacity)
                 
@@ -422,6 +466,10 @@ struct OnboardingPlaceholderView: View {
                             #if DEBUG
                             print("🔍 [TAP DEBUG] Previous button - going to previous page")
                             #endif
+                            AnalyticsService.shared.track(.onboardingButtonPrevious, properties: [
+                                "from_page": currentPage + 1,
+                                "from_page_name": getPageName(for: currentPage)
+                            ])
                             goToPreviousPage()
                         } label: {
                             HStack(spacing: 8) {
@@ -446,6 +494,13 @@ struct OnboardingPlaceholderView: View {
                             #if DEBUG
                             print("🔍 [TAP DEBUG] Next button - advancing to next page")
                             #endif
+                            // Track button tap
+                            if currentPage != totalPages - 1 {
+                                AnalyticsService.shared.track(.onboardingButtonNext, properties: [
+                                    "from_page": currentPage + 1,
+                                    "from_page_name": getPageName(for: currentPage)
+                                ])
+                            }
                             advanceToNextPage()
                         } label: {
                             HStack(spacing: 8) {
@@ -486,6 +541,15 @@ struct OnboardingPlaceholderView: View {
             withAnimation(.easeIn(duration: 1.0)) {
                 contentOpacity = 1.0
             }
+            
+            // Track onboarding start
+            if !hasTrackedStart {
+                AnalyticsService.shared.track(.onboardingStarted)
+                hasTrackedStart = true
+                
+                // Track initial page in journey
+                journeyTracker.trackPageVisit(pageNumber: 1, pageName: getPageName(for: 0))
+            }
         }
     }
     
@@ -493,6 +557,11 @@ struct OnboardingPlaceholderView: View {
         #if DEBUG
         print("🔍 [NAV DEBUG] advanceToNextPage called, currentPage: \(currentPage), totalPages: \(totalPages)")
         #endif
+        
+        // Track navigation in journey
+        if currentPage < totalPages - 1 {
+            journeyTracker.trackNavigation(action: "next", fromPage: currentPage + 1, toPage: currentPage + 2)
+        }
         
         // Special handling for screen 4 (Notifications) - submit preferences and get archetype
         if currentPage == 4 && suggestedArchetype == nil {
@@ -512,6 +581,9 @@ struct OnboardingPlaceholderView: View {
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                 currentPage += 1
+                // Track new page visit
+                journeyTracker.trackPageVisit(pageNumber: currentPage + 1, pageName: getPageName(for: currentPage))
+                
                 withAnimation(.easeInOut(duration: 0.8)) {
                     contentOpacity = 1.0
                 }
@@ -625,6 +697,9 @@ struct OnboardingPlaceholderView: View {
             return 
         }
         
+        // Track navigation in journey
+        journeyTracker.trackNavigation(action: "previous", fromPage: currentPage + 1, toPage: currentPage)
+        
         #if DEBUG
         print("🔍 [NAV DEBUG] Going back from page \(currentPage) to \(currentPage - 1)")
         #endif
@@ -634,6 +709,9 @@ struct OnboardingPlaceholderView: View {
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             currentPage -= 1
+            // Track page visit (going back)
+            journeyTracker.trackPageVisit(pageNumber: currentPage + 1, pageName: getPageName(for: currentPage))
+            
             withAnimation(.easeInOut(duration: 0.8)) {
                 contentOpacity = 1.0
             }
@@ -646,10 +724,25 @@ struct OnboardingPlaceholderView: View {
             throw PreferencesError.noAuthStore
         }
         
-        // Convert to JSON for API request
+        // Complete the journey tracking
+        journeyTracker.completeJourney(skipped: false)
+        
+        // Prepare the API request with both preferences and journey data
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(preferences)
+        
+        // First encode the preferences
+        var preferencesDict = try JSONSerialization.jsonObject(
+            with: try encoder.encode(preferences)
+        ) as? [String: Any] ?? [:]
+        
+        // Add the journey data
+        if let journeyDict = try? journeyTracker.exportAsDictionary() {
+            preferencesDict["onboarding_journey"] = journeyDict
+        }
+        
+        // Convert the combined dictionary to JSON data
+        let data = try JSONSerialization.data(withJSONObject: preferencesDict)
         
         var request = URLRequest(url: Config.apiBase.appendingPathComponent("/api/users/me/preferences"))
         request.httpMethod = "POST"
@@ -737,7 +830,34 @@ struct OnboardingContent: View {
     @Binding var userPreferences: UserPreferences
     let suggestedArchetype: ArchetypeSuggestion?
     let onPreferencesSubmit: () async -> Void
+    let onboardingStartTime: Date
     @State private var textOpacity = 0.0
+    
+    private func getPageName() -> String {
+        switch page {
+        case 0: return "welcome"
+        case 1: return "sleep_patterns"
+        case 2: return "dream_patterns"
+        case 3: return "goals_interests"
+        case 4: return "notifications"
+        case 5: return "archetype_reveal"
+        case 6: return "complete"
+        default: return "unknown"
+        }
+    }
+    
+    private func getPageEvent() -> AnalyticsEvent {
+        switch page {
+        case 0: return .onboardingPage1Welcome
+        case 1: return .onboardingPage2SleepPatterns
+        case 2: return .onboardingPage3DreamPatterns
+        case 3: return .onboardingPage4Goals
+        case 4: return .onboardingPage5Notifications
+        case 5: return .onboardingPage6Archetype
+        case 6: return .onboardingPage7Complete
+        default: return .onboardingPageViewed
+        }
+    }
     
     var body: some View {
         VStack(spacing: 32) {
@@ -762,7 +882,8 @@ struct OnboardingContent: View {
                 OnboardingCompleteScreen(
                     auth: auth,
                     preferences: userPreferences,
-                    archetype: suggestedArchetype
+                    archetype: suggestedArchetype,
+                    onboardingStartTime: onboardingStartTime
                 )
             default:
                 EmptyView()
@@ -773,12 +894,22 @@ struct OnboardingContent: View {
             withAnimation(.easeIn(duration: 1.2)) {
                 textOpacity = 1.0
             }
+            // Track specific page view
+            AnalyticsService.shared.track(getPageEvent(), properties: [
+                "page_number": page + 1,
+                "page_name": getPageName()
+            ])
         }
         .onChange(of: page) { _ in
             textOpacity = 0.0
             withAnimation(.easeIn(duration: 1.2).delay(0.2)) {
                 textOpacity = 1.0
             }
+            // Track specific page view
+            AnalyticsService.shared.track(getPageEvent(), properties: [
+                "page_number": page + 1,
+                "page_name": getPageName()
+            ])
         }
         .padding(.horizontal, 32)
     }
@@ -908,6 +1039,11 @@ struct SleepPatternsScreen: View {
                                     Button(time) {
                                         selectedBedtime = time
                                         updatePreferences()
+                                        AnalyticsService.shared.track(.onboardingPreferenceSelected, properties: [
+                                            "preference_type": "bedtime",
+                                            "value": time,
+                                            "page": "sleep_patterns"
+                                        ])
                                     }
                                     .foregroundColor(selectedBedtime == time ? DesignSystem.Colors.backgroundPrimary : DesignSystem.Colors.textSecondary)
                                     .padding(.horizontal, 16)
@@ -936,6 +1072,11 @@ struct SleepPatternsScreen: View {
                                     Button(time) {
                                         selectedWakeTime = time
                                         updatePreferences()
+                                        AnalyticsService.shared.track(.onboardingPreferenceSelected, properties: [
+                                            "preference_type": "wake_time",
+                                            "value": time,
+                                            "page": "sleep_patterns"
+                                        ])
                                     }
                                     .foregroundColor(selectedWakeTime == time ? DesignSystem.Colors.backgroundPrimary : DesignSystem.Colors.textSecondary)
                                     .padding(.horizontal, 16)
@@ -963,6 +1104,12 @@ struct SleepPatternsScreen: View {
                                 Button {
                                     selectedSleepQuality = quality.0
                                     updatePreferences()
+                                    AnalyticsService.shared.track(.onboardingPreferenceSelected, properties: [
+                                        "preference_type": "sleep_quality",
+                                        "value": quality.0,
+                                        "label": quality.1,
+                                        "page": "sleep_patterns"
+                                    ])
                                 } label: {
                                     HStack {
                                         Text(quality.1)
@@ -1626,6 +1773,13 @@ struct ArchetypeRevealScreen: View {
             withAnimation(.easeInOut(duration: 1.5).delay(0.5)) {
                 showDetails = true
             }
+            
+            // Track archetype reveal
+            AnalyticsService.shared.track(.archetypeRevealed, properties: [
+                "archetype": archetype.suggestedArchetype,
+                "confidence": archetype.confidence,
+                "archetype_name": archetype.archetypeDetails.name
+            ])
         }
     }
 }
@@ -1634,6 +1788,7 @@ struct OnboardingCompleteScreen: View {
     let auth: AuthBridge
     let preferences: UserPreferences
     let archetype: ArchetypeSuggestion?
+    let onboardingStartTime: Date
     
     var body: some View {
         VStack(spacing: 32) {
@@ -1655,6 +1810,18 @@ struct OnboardingCompleteScreen: View {
             }
             
             Button("Begin Dream Capture") {
+                // Track onboarding completion
+                AnalyticsService.shared.trackDuration(
+                    event: .onboardingCompleted,
+                    startTime: onboardingStartTime,
+                    properties: [
+                        "archetype": archetype?.suggestedArchetype ?? "unknown",
+                        "archetype_confidence": archetype?.confidence ?? 0,
+                        "notifications_enabled": preferences.reminderEnabled,
+                        "primary_goal": preferences.primaryGoal ?? "unknown"
+                    ]
+                )
+                
                 Task {
                     // First request notification permission if reminders are enabled
                     if preferences.reminderEnabled {
