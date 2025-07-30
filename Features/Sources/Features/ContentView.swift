@@ -230,7 +230,8 @@ public struct ContentView: View {
                 }
             }
             .fullScreenCover(isPresented: $showFirstDreamCelebration) {
-                FirstDreamCelebrationView(isPresented: $showFirstDreamCelebration)
+                // TODO: Get actual wake time from user preferences
+                FirstDreamCelebrationView(isPresented: $showFirstDreamCelebration, wakeTime: nil)
             }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } // End ZStack

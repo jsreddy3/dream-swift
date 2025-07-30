@@ -7,6 +7,8 @@ struct FirstDreamCelebrationView: View {
     @State private var confettiAnimation = false
     @State private var textScale: CGFloat = 0.1
     @State private var buttonOpacity: Double = 0
+    @State private var showNotificationSetup = false
+    let wakeTime: String?
     
     var body: some View {
         ZStack {
@@ -63,16 +65,15 @@ struct FirstDreamCelebrationView: View {
                 
                 // Continue button
                 Button {
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        isPresented = false
-                    }
-                    
                     // Track dismissal
                     AnalyticsService.shared.track(.firstDreamCelebrationDismissed)
+                    
+                    // Show notification setup
+                    showNotificationSetup = true
                 } label: {
                     Text("Continue Your Journey")
                         .font(DesignSystem.Typography.subheadline())
-                        .foregroundColor(DesignSystem.Colors.backgroundPrimary)
+                        .foregroundColor(.white)
                         .padding(.horizontal, 32)
                         .padding(.vertical, 16)
                         .background(
@@ -92,6 +93,17 @@ struct FirstDreamCelebrationView: View {
             
             // Haptic feedback
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        }
+        .fullScreenCover(isPresented: $showNotificationSetup) {
+            FirstDreamNotificationSetupView(isPresented: $showNotificationSetup, wakeTime: wakeTime)
+        }
+        .onChange(of: showNotificationSetup) { isShowing in
+            if !isShowing {
+                // When notification setup is dismissed, also dismiss celebration
+                withAnimation(.easeOut(duration: 0.3)) {
+                    isPresented = false
+                }
+            }
         }
     }
     
@@ -230,6 +242,6 @@ struct ConfettiStar: Shape {
 // MARK: - Preview
 
 #Preview {
-    FirstDreamCelebrationView(isPresented: .constant(true))
+    FirstDreamCelebrationView(isPresented: .constant(true), wakeTime: "07:00")
         .background(Color.black)
 }
