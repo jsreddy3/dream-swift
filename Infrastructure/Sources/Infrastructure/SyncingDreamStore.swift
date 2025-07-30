@@ -163,7 +163,9 @@ public actor SyncingDreamStore: DreamStore, Sendable {
                 return cloud.sorted { $0.created_at > $1.created_at }
             } catch {
                 // If remote call fails (including timeout), fall back to cached data
+                #if DEBUG
                 print("SyncingDreamStore: Remote allDreams failed, using cached data: \(error)")
+                #endif
                 return cached.sorted { $0.created_at > $1.created_at }
             }
         }
@@ -207,29 +209,41 @@ public actor SyncingDreamStore: DreamStore, Sendable {
     }
 
     public func requestAnalysis(for id: UUID) async throws {
+        #if DEBUG
         print("DEBUG: SyncingDreamStore.requestAnalysis called, isOnline: \(isOnline)")
+        #endif
         // delegate straight to remote if we're online,
         // otherwise enqueue for later just like other ops.
         if isOnline {
+            #if DEBUG
             print("DEBUG: Calling remote.requestAnalysis with timeout protection")
+            #endif
             try await withTimeout(seconds: 15.0) { [self] in
                 try await remote.requestAnalysis(for: id)
             }
         } else {
+            #if DEBUG
             print("DEBUG: Offline, enqueueing for later")
+            #endif
             enqueue(.analyze(id))   // ← you may add this PendingOp later
         }
     }
     
     public func requestExpandedAnalysis(for id: UUID) async throws {
+        #if DEBUG
         print("DEBUG: SyncingDreamStore.requestExpandedAnalysis called, isOnline: \(isOnline)")
+        #endif
         if isOnline {
+            #if DEBUG
             print("DEBUG: Calling remote.requestExpandedAnalysis with timeout protection")
+            #endif
             try await withTimeout(seconds: 15.0) { [self] in
                 try await remote.requestExpandedAnalysis(for: id)
             }
         } else {
+            #if DEBUG
             print("DEBUG: Offline, can't do expanded analysis")
+            #endif
         }
     }
 
@@ -381,7 +395,9 @@ public actor SyncingDreamStore: DreamStore, Sendable {
                 if let remoteError = error as? RemoteError,
                    case .badStatus(let code, _) = remoteError,
                    code == 404 {
+                    #if DEBUG
                     print("Dream \(id) not found on server, skipping finish operation")
+                    #endif
                     return
                 }
                 throw error

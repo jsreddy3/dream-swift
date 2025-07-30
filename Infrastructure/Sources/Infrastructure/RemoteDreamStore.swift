@@ -182,7 +182,9 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         } catch {
             // Try to decode what we can
             if let json = try? JSONSerialization.jsonObject(with: data, options: []) {
+                #if DEBUG
                 print("Raw JSON: \(json)")
+                #endif
             }
             throw error
         }
@@ -233,14 +235,19 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     
     // GET /dreams/{id}
     public func getDream(_ id: UUID) async throws -> Dream {
+        #if DEBUG
         print("DEBUG: RemoteDreamStore.getDream called for id: \(id)")
+        #endif
         let req = try await makeRequest(
             path: "dreams/\(id.uuidString.lowercased())",
             method: "GET"
         )
+        #if DEBUG
         print("DEBUG: About to make GET request to: \(req.url?.absoluteString ?? "no url")")
+        #endif
         let (data, _) = try await session.data(for: req)
         
+        #if DEBUG
         // Debug: print raw JSON
         if let jsonString = String(data: data, encoding: .utf8) {
             // Print first 500 chars to avoid flooding console
@@ -256,9 +263,12 @@ public actor RemoteDreamStore: DreamStore, Sendable {
                 }
             }
         }
+        #endif
         
         let dream = try decoder.decode(Dream.self, from: data)
+        #if DEBUG
         print("DEBUG: Decoded dream - has analysis: \(dream.analysis != nil)")
+        #endif
         return dream
     }
 

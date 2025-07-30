@@ -43,6 +43,12 @@ public struct MainTabView: View {
             // Library Tab
             NavigationStack {
                 DreamLibraryView(viewModel: libraryVM)
+                    .onAppear {
+                        // Refresh when tab becomes visible and we've saved a dream
+                        if captureVM.state == .saved {
+                            Task { await libraryVM.refresh() }
+                        }
+                    }
             }
             .tabItem {
                 Label("Library", systemImage: "books.vertical.fill")

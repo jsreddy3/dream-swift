@@ -38,7 +38,9 @@ public class ProfileViewModel: ObservableObject {
                 self.isLoading = false
             }
         } catch {
+            #if DEBUG
             print("Failed to load profile: \(error)")
+            #endif
             await MainActor.run {
                 self.isLoading = false
             }

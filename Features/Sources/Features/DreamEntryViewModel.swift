@@ -54,24 +54,34 @@ public final class DreamEntryViewModel: ObservableObject {
     func refresh() async {
         do   { 
             let updatedDream = try await self.store.getDream(self.dream.id)
+            #if DEBUG
             print("DEBUG: refresh completed - analysis: \(updatedDream.analysis != nil ? "exists" : "nil")")
             print("DEBUG: Current dream analysis before update: \(self.dream.analysis != nil)")
+            #endif
             self.dream = updatedDream
+            #if DEBUG
             print("DEBUG: Current dream analysis after update: \(self.dream.analysis != nil)")
+            #endif
             
             // Explicitly trigger view update
             self.objectWillChange.send()
         }
         catch { 
             NSLog("refresh failed: \(error)")
+            #if DEBUG
             print("DEBUG: refresh error: \(error)")
+            #endif
         }
     }
 
     func interpret() async {
+        #if DEBUG
         print("DEBUG: interpret() called")
+        #endif
         guard self.dream.analysis == nil else { 
+            #if DEBUG
             print("DEBUG: analysis already exists")
+            #endif
             return 
         }
         // Clear any previous error when retrying
@@ -82,10 +92,14 @@ public final class DreamEntryViewModel: ObservableObject {
         self.statusMessage = "Initiating dream analysis..."
         
         await runWithBusyAndErrors {
+            #if DEBUG
             print("DEBUG: calling requestAnalysis")
+            #endif
             let requestStartTime = Date()
             try await self.store.requestAnalysis(for: self.dream.id)
+            #if DEBUG
             print("DEBUG: requestAnalysis completed at \(Date()), starting polling...")
+            #endif
             
             // Poll every 2 seconds for up to 60 seconds
             let maxAttempts = 30
@@ -134,23 +148,31 @@ public final class DreamEntryViewModel: ObservableObject {
                     self.statusMessage = apologeticMessages[apologeticIndex]
                 }
                 
+                #if DEBUG
                 print("DEBUG: Poll attempt \(attempt)/\(maxAttempts), elapsed: \(elapsedSeconds)s, status: \(self.statusMessage ?? "nil")")
+                #endif
                 try await Task.sleep(for: pollInterval)
                 await self.refresh()
                 
                 if self.dream.analysis != nil {
+                    #if DEBUG
                     print("DEBUG: Analysis found on attempt \(attempt) after \(elapsedSeconds)s!")
+                    #endif
                     self.statusMessage = nil  // Clear status message
                     break
                 }
             }
             
             let finalElapsed = Date().timeIntervalSince(requestStartTime)
+            #if DEBUG
             print("DEBUG: interpret flow completed - analysis: \(self.dream.analysis != nil ? "found" : "not found"), total time: \(finalElapsed)s")
+            #endif
             
             // Log timeout if we didn't get analysis
             if self.dream.analysis == nil {
+                #if DEBUG
                 print("ERROR: Analysis timed out after \(finalElapsed) seconds")
+                #endif
                 // TODO: Send this log to server
             }
         }
@@ -250,13 +272,17 @@ public final class DreamEntryViewModel: ObservableObject {
     // ──────────────────────────────────────────────────────────────
     func requestExpandedAnalysis() async {
         guard self.dream.analysis != nil else { 
+            #if DEBUG
             print("DEBUG: No initial analysis available for expanded analysis")
+            #endif
             return 
         }
         
         // Check if expanded analysis already exists
         if self.dream.expandedAnalysis != nil {
+            #if DEBUG
             print("DEBUG: Expanded analysis already exists")
+            #endif
             return
         }
         
@@ -292,30 +318,42 @@ public final class DreamEntryViewModel: ObservableObject {
         }
 
         do {
+            #if DEBUG
             print("DEBUG: calling requestExpandedAnalysis")
+            #endif
             try await self.store.requestExpandedAnalysis(for: self.dream.id)
+            #if DEBUG
             print("DEBUG: requestExpandedAnalysis completed, refreshing...")
+            #endif
             
             // Poll for the expanded analysis (similar to interpret method)
             let maxAttempts = 30
             let pollInterval: Duration = .seconds(2)
             
             for attempt in 1...maxAttempts {
+                #if DEBUG
                 print("DEBUG: Poll attempt \(attempt)/\(maxAttempts) for expanded analysis")
+                #endif
                 try await Task.sleep(for: pollInterval)
                 await self.refresh()
                 
                 if self.dream.expandedAnalysis != nil {
+                    #if DEBUG
                     print("DEBUG: Expanded analysis found on attempt \(attempt)!")
+                    #endif
                     break
                 }
             }
             
             if self.dream.expandedAnalysis == nil {
+                #if DEBUG
                 print("ERROR: Expanded analysis timed out")
+                #endif
             }
         } catch {
+            #if DEBUG
             print("DEBUG: requestExpandedAnalysis error: \(error)")
+            #endif
         }
     }
 
@@ -365,7 +403,9 @@ public final class DreamEntryViewModel: ObservableObject {
             - Full Error: \(error)
             - Timestamp: \(Date())
             """
+            #if DEBUG
             print("ERROR: \(errorDetails)")
+            #endif
             // TODO: Send errorDetails to server logging
             
             // Differentiate between error types
@@ -392,7 +432,9 @@ public final class DreamEntryViewModel: ObservableObject {
                 self.errorAction = .retry
             }
             
+            #if DEBUG
             print("DEBUG: Error message shown to user: \(self.errorMessage ?? "nil"), action: \(self.errorAction ?? .close)")
+            #endif
         }
     }
 

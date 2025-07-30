@@ -5,6 +5,7 @@ import Infrastructure          // for AuthStore, SyncingDreamStore
 import DomainLogic             // for CaptureViewModel
 import CoreModels              // for shared types, UserPreferences, ArchetypeSuggestion
 import Configuration           // for Config.forceOnboardingForTesting
+import UserNotifications       // for notification permissions
 
 // MARK: - Color Palette (Using Design System)
 
@@ -55,26 +56,36 @@ public final class AuthBridge: ObservableObject {
                 isCheckingOnboarding = false           // onboarding check complete
             }
         } catch {
+            #if DEBUG
             print("Google sign-in failed: \(error)")
+            #endif
         }
     }
     
     private func checkOnboardingNeeded() async {
+        #if DEBUG
         print("🔍 [ONBOARDING DEBUG] Starting onboarding check...")
+        #endif
         
         guard let store = store else { 
+            #if DEBUG
             print("🔍 [ONBOARDING DEBUG] No store available")
+            #endif
             let forceOnboarding = Config.forceOnboardingForTesting
             let hasCompleted = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
             
+            #if DEBUG
             print("🔍 [ONBOARDING DEBUG] Feature flag forceOnboardingForTesting: \(forceOnboarding)")
             print("🔍 [ONBOARDING DEBUG] UserDefaults hasCompletedOnboarding: \(hasCompleted)")
+            #endif
             
             // Without store, assume new user needs onboarding unless they've explicitly completed it
             let shouldShow = forceOnboarding || !hasCompleted
             await MainActor.run {
                 needsOnboarding = shouldShow
+                #if DEBUG
                 print("🔍 [ONBOARDING DEBUG] Set needsOnboarding to: \(needsOnboarding)")
+                #endif
             }
             return 
         }
@@ -87,14 +98,18 @@ public final class AuthBridge: ObservableObject {
             let keyExists = UserDefaults.standard.object(forKey: "hasCompletedOnboarding") != nil
             let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
             
+            #if DEBUG
             print("🔍 [ONBOARDING DEBUG] Dreams count: \(dreams.count)")
             print("🔍 [ONBOARDING DEBUG] Dreams isEmpty: \(dreams.isEmpty)")
             print("🔍 [ONBOARDING DEBUG] UserDefaults key exists: \(keyExists)")
             print("🔍 [ONBOARDING DEBUG] UserDefaults hasCompletedOnboarding: \(hasCompletedOnboarding)")
+            #endif
             
             // Feature flag override for testing
             let forceOnboarding = Config.forceOnboardingForTesting
+            #if DEBUG
             print("🔍 [ONBOARDING DEBUG] Feature flag forceOnboardingForTesting: \(forceOnboarding)")
+            #endif
             
             // Normal logic: show onboarding if no dreams AND user hasn't completed onboarding
             let normalLogicShouldShow = dreams.isEmpty && !hasCompletedOnboarding
@@ -102,29 +117,39 @@ public final class AuthBridge: ObservableObject {
             // Final decision: force flag OR normal logic
             let shouldShowOnboarding = forceOnboarding || normalLogicShouldShow
             
+            #if DEBUG
             print("🔍 [ONBOARDING DEBUG] Normal logic would show: \(normalLogicShouldShow)")
             print("🔍 [ONBOARDING DEBUG] Final decision - Should show onboarding: \(shouldShowOnboarding)")
+            #endif
             
             await MainActor.run {
                 needsOnboarding = shouldShowOnboarding
+                #if DEBUG
                 print("🔍 [ONBOARDING DEBUG] Set needsOnboarding to: \(needsOnboarding)")
+                #endif
             }
         } catch {
             let isTimeout = (error as? PreferencesError) == .timeout
+            #if DEBUG
             print("🔍 [ONBOARDING DEBUG] Failed to check dreams: \(error)")
             print("🔍 [ONBOARDING DEBUG] Error was timeout: \(isTimeout)")
+            #endif
             
             let forceOnboarding = Config.forceOnboardingForTesting
             let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
             
+            #if DEBUG
             print("🔍 [ONBOARDING DEBUG] Fallback - Feature flag forceOnboardingForTesting: \(forceOnboarding)")
             print("🔍 [ONBOARDING DEBUG] Fallback - UserDefaults hasCompletedOnboarding: \(hasCompletedOnboarding)")
+            #endif
             
             // For timeout errors, be more conservative about showing onboarding
             let shouldShow = forceOnboarding || !hasCompletedOnboarding
             await MainActor.run {
                 needsOnboarding = shouldShow
+                #if DEBUG
                 print("🔍 [ONBOARDING DEBUG] Fallback - Set needsOnboarding to: \(shouldShow)")
+                #endif
             }
         }
     }
@@ -137,7 +162,9 @@ public final class AuthBridge: ObservableObject {
     
     @MainActor
     func resetOnboardingForTesting() {
+        #if DEBUG
         print("🔍 [DEBUG] Resetting onboarding flag for testing")
+        #endif
         UserDefaults.standard.removeObject(forKey: "hasCompletedOnboarding")
         needsOnboarding = true
     }
@@ -392,7 +419,9 @@ struct OnboardingPlaceholderView: View {
                     HStack(spacing: 24) {
                         // Previous button
                         Button {
+                            #if DEBUG
                             print("🔍 [TAP DEBUG] Previous button - going to previous page")
+                            #endif
                             goToPreviousPage()
                         } label: {
                             HStack(spacing: 8) {
@@ -414,7 +443,9 @@ struct OnboardingPlaceholderView: View {
                         
                         // Next/Continue button
                         Button {
+                            #if DEBUG
                             print("🔍 [TAP DEBUG] Next button - advancing to next page")
+                            #endif
                             advanceToNextPage()
                         } label: {
                             HStack(spacing: 8) {
@@ -459,7 +490,9 @@ struct OnboardingPlaceholderView: View {
     }
     
     private func advanceToNextPage() {
+        #if DEBUG
         print("🔍 [NAV DEBUG] advanceToNextPage called, currentPage: \(currentPage), totalPages: \(totalPages)")
+        #endif
         
         // Special handling for screen 4 (Notifications) - submit preferences and get archetype
         if currentPage == 4 && suggestedArchetype == nil {
@@ -470,7 +503,9 @@ struct OnboardingPlaceholderView: View {
         }
         
         if currentPage < totalPages - 1 {
+            #if DEBUG
             print("🔍 [NAV DEBUG] Advancing from page \(currentPage) to \(currentPage + 1)")
+            #endif
             withAnimation(.easeInOut(duration: 0.8)) {
                 contentOpacity = 0.0
             }
@@ -482,19 +517,25 @@ struct OnboardingPlaceholderView: View {
                 }
             }
         } else {
+            #if DEBUG
             print("🔍 [NAV DEBUG] On last page, completing onboarding")
+            #endif
             auth.completeOnboarding()
         }
     }
     
     private func submitPreferences() async {
         guard !isSubmittingPreferences else { 
+            #if DEBUG
             print("🔍 [PREFERENCES] Already submitting, skipping...")
+            #endif
             return 
         }
         
+        #if DEBUG
         print("🔍 [PREFERENCES] Starting preference submission...")
         print("🔍 [PREFERENCES] Current preferences: \(userPreferences)")
+        #endif
         isSubmittingPreferences = true
         
         do {
@@ -502,13 +543,17 @@ struct OnboardingPlaceholderView: View {
             let createdPreferences = try await withTimeout(seconds: 10) {
                 try await createUserPreferences(userPreferences)
             }
+            #if DEBUG
             print("🔍 [PREFERENCES] Successfully created preferences")
+            #endif
             
             // Get archetype suggestion with timeout  
             let archetype = try await withTimeout(seconds: 10) {
                 try await suggestArchetype()
             }
+            #if DEBUG
             print("🔍 [PREFERENCES] Successfully got archetype suggestion")
+            #endif
             
             await MainActor.run {
                 suggestedArchetype = archetype
@@ -527,9 +572,13 @@ struct OnboardingPlaceholderView: View {
                 }
             }
             
+            #if DEBUG
             print("✅ [PREFERENCES] Successfully submitted preferences and got archetype: \(archetype.suggestedArchetype)")
+            #endif
         } catch {
+            #if DEBUG
             print("❌ [PREFERENCES] Failed to submit preferences: \(error)")
+            #endif
             await MainActor.run {
                 isSubmittingPreferences = false
                 
@@ -556,21 +605,29 @@ struct OnboardingPlaceholderView: View {
                     }
                 }
                 
+                #if DEBUG
                 print("⚠️ [PREFERENCES] Using fallback archetype due to API error")
+                #endif
             }
         }
     }
     
     private func goToPreviousPage() {
+        #if DEBUG
         print("🔍 [NAV DEBUG] goToPreviousPage called, currentPage: \(currentPage)")
+        #endif
         
         // Only go back if we're not on the first page
         guard currentPage > 0 else { 
+            #if DEBUG
             print("🔍 [NAV DEBUG] Already on first page, can't go back")
+            #endif
             return 
         }
         
+        #if DEBUG
         print("🔍 [NAV DEBUG] Going back from page \(currentPage) to \(currentPage - 1)")
+        #endif
         withAnimation(.easeInOut(duration: 0.8)) {
             contentOpacity = 0.0
         }
@@ -702,7 +759,11 @@ struct OnboardingContent: View {
                     ArchetypeLoadingScreen()
                 }
             case 6:
-                OnboardingCompleteScreen(auth: auth)
+                OnboardingCompleteScreen(
+                    auth: auth,
+                    preferences: userPreferences,
+                    archetype: suggestedArchetype
+                )
             default:
                 EmptyView()
             }
@@ -1312,7 +1373,7 @@ struct GoalsInterestsScreen: View {
 
 struct NotificationScreen: View {
     @Binding var preferences: UserPreferences
-    @State private var reminderEnabled = true
+    @State private var reminderEnabled = false  // Default to OFF so user must actively enable
     @State private var selectedTime = "08:00"
     @State private var selectedFrequency = "daily"
     
@@ -1437,15 +1498,24 @@ struct NotificationScreen: View {
             }
         }
         .onAppear {
-            // Initialize state from current preferences
-            reminderEnabled = preferences.reminderEnabled
+            // Initialize time and frequency from preferences, but NOT the enabled state
+            // This ensures users must actively toggle ON to trigger permission request
             if let reminderTime = preferences.reminderTime, reminderTime.count >= 5 {
                 selectedTime = String(reminderTime.prefix(5)) // Extract HH:MM from HH:MM:SS
             }
             selectedFrequency = preferences.reminderFrequency
+            
+            // Don't auto-enable based on preferences during onboarding
+            #if DEBUG
+            print("🔔 [NOTIFICATION] NotificationScreen appeared, toggle is: \(reminderEnabled ? "ON" : "OFF")")
+            #endif
             updatePreferences()
         }
-        .onChange(of: reminderEnabled) { _ in
+        .onChange(of: reminderEnabled) { oldValue, newValue in
+            #if DEBUG
+            print("🔔 [NOTIFICATION] Toggle changed from \(oldValue) to \(newValue)")
+            #endif
+            // Just update preferences - we'll request permission when completing onboarding
             updatePreferences()
         }
     }
@@ -1562,6 +1632,8 @@ struct ArchetypeRevealScreen: View {
 
 struct OnboardingCompleteScreen: View {
     let auth: AuthBridge
+    let preferences: UserPreferences
+    let archetype: ArchetypeSuggestion?
     
     var body: some View {
         VStack(spacing: 32) {
@@ -1583,7 +1655,63 @@ struct OnboardingCompleteScreen: View {
             }
             
             Button("Begin Dream Capture") {
-                auth.completeOnboarding()
+                Task {
+                    // First request notification permission if reminders are enabled
+                    if preferences.reminderEnabled {
+                        #if DEBUG
+                        print("🔔 [COMPLETION] Requesting notification permission...")
+                        #endif
+                        
+                        do {
+                            let center = UNUserNotificationCenter.current()
+                            let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+                            
+                            if granted {
+                                #if DEBUG
+                                print("✅ [COMPLETION] Permission granted, scheduling notifications...")
+                                #endif
+                                
+                                // Now schedule notifications
+                                if let reminderTime = preferences.reminderTime {
+                                    let scheduler = NotificationScheduler.shared
+                                    let timeString = String(reminderTime.prefix(5))
+                                    
+                                    try await scheduler.scheduleReminders(
+                                        time: timeString,
+                                        frequency: preferences.reminderFrequency,
+                                        archetype: archetype?.suggestedArchetype
+                                    )
+                                    #if DEBUG
+                                    print("✅ Scheduled \(preferences.reminderFrequency) reminders at \(timeString)")
+                                    
+                                    // Schedule a preview notification for 10 seconds from now
+                                    try await scheduler.scheduleTestNotification(
+                                        archetype: archetype?.suggestedArchetype
+                                    )
+                                    print("\n🔔 NOTIFICATION PREVIEW:")
+                                    print("   A preview of your daily reminder will appear in 10 seconds")
+                                    print("   This is exactly how your 8:00 AM reminder will look")
+                                    print("   📱 Press Cmd+Shift+H (home button) now to see it!\n")
+                                    
+                                    // Also print what notifications are scheduled
+                                    await scheduler.printScheduledNotifications()
+                                    #endif
+                                }
+                            } else {
+                                #if DEBUG
+                                print("❌ [COMPLETION] Permission denied")
+                                #endif
+                            }
+                        } catch {
+                            #if DEBUG
+                            print("⚠️ [COMPLETION] Failed to request permission or schedule: \(error)")
+                            #endif
+                        }
+                    }
+                    
+                    // Complete onboarding regardless of notification status
+                    auth.completeOnboarding()
+                }
             }
             .font(DesignSystem.Typography.subheadline())
             .foregroundColor(DesignSystem.Colors.textPrimary)

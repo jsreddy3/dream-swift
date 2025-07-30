@@ -78,22 +78,30 @@ struct VideoPlayerView: View {
     }
     
     private func setupPlayer() {
+        #if DEBUG
         print("=== VideoPlayerView Debug ===")
         print("Video URL: \(url)")
         print("URL scheme: \(url.scheme ?? "none")")
         print("URL host: \(url.host ?? "none")")
         print("URL path: \(url.path)")
+        #endif
         playerStatus = "Loading..."
         
         // Configure audio session first
         DispatchQueue.global(qos: .userInitiated).async {
             do {
+                #if DEBUG
                 print("Configuring audio session...")
+                #endif
                 try AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
                 try AVAudioSession.sharedInstance().setActive(true)
+                #if DEBUG
                 print("Audio session configured successfully")
+                #endif
             } catch {
+                #if DEBUG
                 print("Failed to set audio session: \(error)")
+                #endif
                 DispatchQueue.main.async {
                     self.playerStatus = "Audio error: \(error.localizedDescription)"
                 }
@@ -105,11 +113,15 @@ struct VideoPlayerView: View {
         player.isMuted = false
         player.automaticallyWaitsToMinimizeStalling = true
         
+        #if DEBUG
         print("Player volume: \(player.volume), Muted: \(player.isMuted)")
+        #endif
         
         // Get current item
         guard let playerItem = player.currentItem else {
+            #if DEBUG
             print("ERROR: No current item on player")
+            #endif
             playerStatus = "Error: No video loaded"
             return
         }
@@ -120,18 +132,28 @@ struct VideoPlayerView: View {
             .sink { status in
                 switch status {
                 case .unknown:
+                    #if DEBUG
                     print("Player item status: Unknown")
+                    #endif
                     self.playerStatus = "Loading..."
                 case .readyToPlay:
+                    #if DEBUG
                     print("Player item status: Ready to play")
+                    #endif
                     self.playerStatus = "Ready"
                     // Play immediately when ready
                     self.player.play()
+                    #if DEBUG
                     print("Called play()")
+                    #endif
                 case .failed:
+                    #if DEBUG
                     print("Player item status: Failed")
+                    #endif
                     if let error = playerItem.error {
+                        #if DEBUG
                         print("Error: \(error)")
+                        #endif
                         self.playerStatus = "Error: \(error.localizedDescription)"
                     }
                 @unknown default:
@@ -146,15 +168,23 @@ struct VideoPlayerView: View {
             .sink { status in
                 switch status {
                 case .paused:
+                    #if DEBUG
                     print("Playback: Paused")
+                    #endif
                 case .waitingToPlayAtSpecifiedRate:
+                    #if DEBUG
                     print("Playback: Waiting...")
+                    #endif
                     if let reason = self.player.reasonForWaitingToPlay {
+                        #if DEBUG
                         print("Reason: \(reason)")
+                        #endif
                         self.playerStatus = "Buffering..."
                     }
                 case .playing:
+                    #if DEBUG
                     print("Playback: Playing")
+                    #endif
                     self.playerStatus = "Playing"
                 @unknown default:
                     break
@@ -167,7 +197,9 @@ struct VideoPlayerView: View {
             .sink { _ in
                 if let errorLog = playerItem.errorLog() {
                     for event in errorLog.events {
+                        #if DEBUG
                         print("Error: \(event.errorComment ?? "Unknown")")
+                        #endif
                     }
                 }
             }
