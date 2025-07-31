@@ -9,7 +9,7 @@ import DomainLogic
 public class ProfileViewModel: ObservableObject {
     @Published var userProfile: UserProfile?
     @Published var currentArchetype: DreamArchetype = .analytical
-    @Published var todayMessage: String = ""
+    @Published var todayMessage: DreamMessage = DreamMessage(message: "", inspiration: "")
     @Published var recentSymbols: [String] = []
     @Published var emotionalData: [EmotionData] = []
     @Published var statistics: DreamStatistics = .empty
@@ -253,8 +253,11 @@ public class ProfileViewModel: ObservableObject {
     
     // MARK: - Message Generation
     
-    private func generateTodayMessage() -> String {
+    private func generateTodayMessage() -> DreamMessage {
         let messages = currentArchetype.messages
+        guard !messages.isEmpty else {
+            return DreamMessage(message: "", inspiration: "")
+        }
         let dayOfYear = Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 0
         let index = dayOfYear % messages.count
         return messages[index]
@@ -339,11 +342,16 @@ public class ProfileViewModel: ObservableObject {
 
 // MARK: - Data Models
 
+public struct DreamMessage: Sendable {
+    let message: String
+    let inspiration: String
+}
+
 public struct DreamArchetype: Sendable {
     let id: String
     let name: String
     let symbol: String
-    let messages: [String]
+    let messages: [DreamMessage]
     let researcher: String
     let theory: String
     
@@ -352,11 +360,18 @@ public struct DreamArchetype: Sendable {
         name: "Analytical Dreamer",
         symbol: "🧠",
         messages: [
-            "Your mind processes today's experiences",
-            "Dreams organize your practical thoughts",
-            "Structure emerges from nocturnal reflection",
-            "Tonight's rest clarifies tomorrow's tasks",
-            "Your sleeping brain sorts and files"
+            DreamMessage(
+                message: "Tonight your brain organizes today's challenges, making tomorrow's tasks clearer.",
+                inspiration: "Interpretation inspired by psychologist Dr. Ernest Hartmann's research on memory consolidation during dreams."
+            ),
+            DreamMessage(
+                message: "Your dreams may subtly rehearse practical scenarios tonight, enhancing tomorrow's problem-solving skills.",
+                inspiration: "Based on psychologist Dr. Antti Revonsuo's threat-simulation theory of dreaming."
+            ),
+            DreamMessage(
+                message: "Tonight's dreams integrate new information quietly. Tomorrow, note any improved clarity or understanding.",
+                inspiration: "Guided by sleep researcher Dr. Robert Stickgold's studies on learning and dream integration."
+            )
         ],
         researcher: "Dr. Ernest Hartmann",
         theory: "Thick-Boundary Dreaming Theory"
@@ -367,11 +382,18 @@ public struct DreamArchetype: Sendable {
         name: "Reflective Dreamer",
         symbol: "🌊",
         messages: [
-            "Emotions flow through tonight's dreams",
-            "Your heart processes while you rest",
-            "Relationships deepen in dream space",
-            "Emotional wisdom emerges in sleep",
-            "Dreams heal what daylight cannot touch"
+            DreamMessage(
+                message: "Tonight your dreams may gently process emotions, helping you wake up feeling clearer.",
+                inspiration: "Inspired by dream researcher Dr. Rosalind Cartwright's work on dreams and emotional resilience."
+            ),
+            DreamMessage(
+                message: "Dreams tonight could reflect interpersonal dynamics. Tomorrow, consider new emotional insights.",
+                inspiration: "Based on psychologist Dr. Calvin Hall's studies of relationships and dream content."
+            ),
+            DreamMessage(
+                message: "Your dreams may explore deep feelings tonight, guiding emotional adaptation and balance.",
+                inspiration: "Influenced by psychiatrist Dr. Milton Kramer's theory of dreams aiding emotional problem-solving."
+            )
         ],
         researcher: "Dr. Rosalind Cartwright",
         theory: "Dreams as Emotional Adaptation"
@@ -382,11 +404,18 @@ public struct DreamArchetype: Sendable {
         name: "Introspective Dreamer",
         symbol: "🔍",
         messages: [
-            "Symbols reveal your inner landscape",
-            "Deep insights await in tonight's dreams",
-            "Your unconscious speaks in vivid imagery",
-            "Profound meanings emerge from sleep",
-            "Dreams illuminate your inner world"
+            DreamMessage(
+                message: "Tonight's symbolic dreams could illuminate hidden aspects of your inner world.",
+                inspiration: "Inspired by psychologist Dr. Carl Jung's work on dream symbolism and the unconscious."
+            ),
+            DreamMessage(
+                message: "Your vivid dreams tonight may reveal insights about your subconscious concerns.",
+                inspiration: "Based on psychologist Dr. Michael Schredl's research linking dream recall to personality traits."
+            ),
+            DreamMessage(
+                message: "Dream imagery tonight might reflect your deepest values and intuitions.",
+                inspiration: "Interpretation influenced by psychologist Dr. Clara Hill's dream meaning exploration methods."
+            )
         ],
         researcher: "Dr. Michael Schredl",
         theory: "Dream Recall and Personality Research"
@@ -397,11 +426,18 @@ public struct DreamArchetype: Sendable {
         name: "Lucid Dreamer",
         symbol: "🌀",
         messages: [
-            "Consciousness awakens within dreams",
-            "Your awareness bridges sleep and wake",
-            "Tonight you may direct your dreams",
-            "Metacognition flourishes in your rest",
-            "Dream control is within your reach"
+            DreamMessage(
+                message: "Tonight, set a gentle intention: 'I'll become aware that I'm dreaming.'",
+                inspiration: "Inspired by psychophysiologist Dr. Stephen LaBerge's techniques on inducing lucid dreams."
+            ),
+            DreamMessage(
+                message: "Your dreams tonight could offer an opportunity to consciously explore your dreamscape.",
+                inspiration: "Based on neuroscientist Dr. Benjamin Baird's research on awareness during dreams."
+            ),
+            DreamMessage(
+                message: "Before sleep, calmly remind yourself to notice dream signs. Tonight awareness is within reach.",
+                inspiration: "Guided by psychologist Dr. Ursula Voss's work on lucid dreaming and brain states."
+            )
         ],
         researcher: "Dr. Stephen LaBerge",
         theory: "Lucid Dreaming and Metacognition"
@@ -412,11 +448,18 @@ public struct DreamArchetype: Sendable {
         name: "Creative Dreamer",
         symbol: "🎨",
         messages: [
-            "Imagination flows freely tonight",
-            "Creative solutions emerge in dreams",
-            "Your sleeping mind paints new worlds",
-            "Artistic inspiration awaits in rest",
-            "Dreams weave tomorrow's innovations"
+            DreamMessage(
+                message: "Tonight your dreams may creatively blend ideas, inspiring fresh insights upon waking.",
+                inspiration: "Interpretation based on psychologist Dr. Ernest Hartmann's thin-boundary dreaming theory."
+            ),
+            DreamMessage(
+                message: "Expect imaginative dreams tonight. Tomorrow, capture ideas sparked in your sleep.",
+                inspiration: "Inspired by neuroscientist Dr. Robert Stickgold's findings on creativity and dreaming."
+            ),
+            DreamMessage(
+                message: "Your dreams tonight might reveal unexpected connections. Stay open to morning inspiration.",
+                inspiration: "Influenced by psychologist Dr. Deirdre Barrett's research on creative problem-solving through dreams."
+            )
         ],
         researcher: "Dr. Ernest Hartmann",
         theory: "Thin-Boundary Dreaming Theory"
@@ -427,11 +470,18 @@ public struct DreamArchetype: Sendable {
         name: "Resolving Dreamer",
         symbol: "⚙️",
         messages: [
-            "Dreams work through today's challenges",
-            "Solutions emerge from sleeping thoughts",
-            "Your mind rehearses future scenarios",
-            "Problems transform in dream space",
-            "Tonight's rest brings tomorrow's answers"
+            DreamMessage(
+                message: "Tonight your mind naturally rehearses solutions. Tomorrow, reflect on new approaches to current challenges.",
+                inspiration: "Inspired by psychologist Dr. G. William Domhoff's work on dreams as problem-solving rehearsals."
+            ),
+            DreamMessage(
+                message: "Dreams tonight might simulate future scenarios, quietly preparing you for upcoming events.",
+                inspiration: "Based on psychologist Dr. Antti Revonsuo's simulation theory of dreaming."
+            ),
+            DreamMessage(
+                message: "Your dreams tonight could clarify unresolved issues, helping you awaken with clearer direction.",
+                inspiration: "Influenced by psychologist Dr. Rosalind Cartwright's findings on dreams and conflict resolution."
+            )
         ],
         researcher: "Dr. G. William Domhoff",
         theory: "Dreams as Problem-solving Mechanisms"

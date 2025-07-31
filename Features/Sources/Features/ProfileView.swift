@@ -2,6 +2,7 @@ import SwiftUI
 import CoreModels
 import Infrastructure
 import DomainLogic
+import Combine
 
 // MARK: - Main Profile View
 
@@ -218,79 +219,77 @@ struct DreamArchetypeView: View {
 struct DreamPatternChart: View {
     let days = 30
     let dreamDates: [Date]
-    @State private var dreamData: [Bool] = []
     
     var body: some View {
         HStack(spacing: 4) {
             ForEach(0..<days, id: \.self) { day in
                 Circle()
-                    .fill(dreamData.indices.contains(day) && dreamData[day] 
-                        ? DesignSystem.Colors.ember 
-                        : DesignSystem.Colors.textPrimary.opacity(0.1))
+                    .fill(getDotColor(for: day))
                     .frame(width: DesignSystem.Sizes.iconSmall, height: DesignSystem.Sizes.iconSmall)
             }
         }
-        .onAppear {
-            calculateDreamPattern()
-        }
     }
     
-    private func calculateDreamPattern() {
-        // Create a calendar to work with dates
+    private func getDotColor(for day: Int) -> Color {
+        // Create pattern in real-time based on current dreamDates
         let calendar = Calendar.current
         let today = Date()
         
-        // Initialize all days as false
-        var pattern = Array(repeating: false, count: days)
+        // Convert day index to date (0 = 30 days ago, 29 = today)
+        let daysAgo = days - day - 1
         
-        // Mark days with dreams
+        // Check if any dream falls on this day
         for dreamDate in dreamDates {
             let daysBetween = calendar.dateComponents([.day], from: dreamDate, to: today).day ?? 0
-            
-            // Only include dreams from the last 30 days
-            if daysBetween >= 0 && daysBetween < days {
-                // Convert to array index (0 = 30 days ago, 29 = today)
-                let index = days - daysBetween - 1
-                if index >= 0 && index < days {
-                    pattern[index] = true
-                }
+            if daysBetween == daysAgo {
+                return DesignSystem.Colors.ember
             }
         }
         
-        // Update pattern
-        self.dreamData = pattern
+        return DesignSystem.Colors.textPrimary.opacity(0.1)
     }
 }
 
 // MARK: - Dream Insights Card
 
 struct DreamInsightsCard: View {
-    let message: String
+    let message: DreamMessage
     let recentSymbols: [String]
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
             Text("Tonight's Portal")
                 .font(DesignSystem.Typography.headline())
                 .foregroundColor(DesignSystem.Colors.textPrimary)
             
-            Text(message)
-                .font(DesignSystem.Typography.bodySmall())
-                .foregroundColor(DesignSystem.Colors.textSecondary)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 12) {
+                // Main message
+                Text(message.message)
+                    .font(DesignSystem.Typography.body())
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                
+                // Scientific inspiration in italics
+                Text(message.inspiration)
+                    .font(DesignSystem.Typography.captionItalic())
+                    .foregroundColor(DesignSystem.Colors.textTertiary)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             
             if !recentSymbols.isEmpty {
                 HStack(spacing: 12) {
                     Text("Recent Symbols:")
-                        .font(DesignSystem.Typography.captionMedium())
+                        .font(DesignSystem.Typography.caption())
                         .foregroundColor(DesignSystem.Colors.textQuaternary)
                     
                     ForEach(recentSymbols, id: \.self) { symbol in
                         Text(symbol)
-                            .font(.system(size: 24))
+                            .font(.system(size: 20))
                     }
                 }
+                .padding(.top, 4)
             }
         }
         .padding(DesignSystem.Spacing.cardPadding)

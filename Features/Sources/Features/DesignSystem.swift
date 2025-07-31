@@ -53,12 +53,16 @@ public enum DesignSystem {
         public static let fontFamilyHeavy = "IowanOldStyleBT-Black"
         public static let fontFamilyMedium = "IowanOldStyleBT-Bold"
         public static let fontFamilyBook = "IowanOldStyleBT-Roman"
+        public static let fontFamilyItalic = "IowanOldStyleBT-Italic"
+        public static let fontFamilyBoldItalic = "IowanOldStyleBT-BoldItalic"
         
         // Fallback to Avenir if custom fonts fail to load
         private static let fallbackBase = "Avenir"
         private static let fallbackHeavy = "Avenir-Heavy"
         private static let fallbackMedium = "Avenir-Medium"
         private static let fallbackBook = "Avenir-Book"
+        private static let fallbackItalic = "Avenir-BookOblique"
+        private static let fallbackBoldItalic = "Avenir-MediumOblique"
         
         // Helper to create font with fallback
         private static func customFont(_ name: String, fallback: String, size: CGFloat) -> Font {
@@ -113,6 +117,23 @@ public enum DesignSystem {
         
         public static func captionMedium() -> Font {
             customFont(fontFamilyMedium, fallback: fallbackMedium, size: 13)
+        }
+        
+        // Italic variations for beautiful emphasis
+        public static func bodyItalic() -> Font {
+            customFont(fontFamilyItalic, fallback: fallbackItalic, size: 17)
+        }
+        
+        public static func bodySmallItalic() -> Font {
+            customFont(fontFamilyItalic, fallback: fallbackItalic, size: 15)
+        }
+        
+        public static func captionItalic() -> Font {
+            customFont(fontFamilyItalic, fallback: fallbackItalic, size: 13)
+        }
+        
+        public static func captionBoldItalic() -> Font {
+            customFont(fontFamilyBoldItalic, fallback: fallbackBoldItalic, size: 13)
         }
         
         // Special sizes
