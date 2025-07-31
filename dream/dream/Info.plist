@@ -11,6 +11,10 @@
 	<array>
 		<string>com.dreamfinder.sync</string>
 	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 	<key>CFBundleGetInfoString</key>
 	<array>
 		<dict>

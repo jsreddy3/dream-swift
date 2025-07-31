@@ -177,33 +177,46 @@ public final class CaptureViewModel {
     }
 
     private func beginRecording() async {
+        print("[CaptureVM] beginRecording() - dreamID: \(dreamID?.uuidString ?? "nil")")
         do {
             if dreamID == nil {
+                print("[CaptureVM] Starting new dream recording...")
                 let result = try await start()
                 dreamID = result.dreamID
                 handle  = result.handle
+                print("[CaptureVM] New dream created with ID: \(result.dreamID)")
             } else {
+                print("[CaptureVM] Continuing existing dream: \(dreamID!)")
                 handle = try await cont(dreamID: dreamID!)
             }
             state = .recording
+            print("[CaptureVM] State changed to: recording")
             Haptics.medium() // Recording started
         } catch {
+            print("[CaptureVM] Recording failed: \(error)")
             state = .failed("Mic error: \(error.localizedDescription)")
             Haptics.error() // Recording failed
         }
     }
         
     private func endRecording() async {
-        guard let id = dreamID, let h = handle else { return }
+        guard let id = dreamID, let h = handle else { 
+            print("[CaptureVM] endRecording() - missing dreamID or handle")
+            return 
+        }
+        print("[CaptureVM] endRecording() - dreamID: \(id), order: \(order)")
         do {
             let newSeg = try await stop(dreamID: id, handle: h, order: order)
+            print("[CaptureVM] Segment created: \(newSeg.id), order: \(newSeg.order)")
             order += 1
             segments.append(newSeg)              // ← row appears immediately
             try await refreshSegments()           // still reconciles if online
             isExtending = false                  // reset when we go back to clipped
             state = .clipped
+            print("[CaptureVM] State changed to: clipped, total segments: \(segments.count)")
             Haptics.medium() // Recording stopped (segment saved)
         } catch {
+            print("[CaptureVM] Stop recording failed: \(error)")
             state = .failed("Stop error: \(error.localizedDescription)")
             Haptics.error() // Recording stop failed
         }

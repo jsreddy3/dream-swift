@@ -2,6 +2,7 @@ import SwiftUI
 import Infrastructure
 import DomainLogic
 import CoreModels
+import Configuration
 
 
 // MARK: – local types
@@ -85,6 +86,7 @@ public struct ContentView: View {
                     .font(DesignSystem.Typography.displayLarge())
                     .foregroundColor(DesignSystem.Colors.textPrimary)
                     .padding(.top, -50)
+                    .frame(height: 40) // Fixed height to prevent shifts
 
                 // Dream capture orb - matching profile aesthetic
                 ZStack {
@@ -105,6 +107,9 @@ public struct ContentView: View {
                 }
                 .frame(width: DesignSystem.Sizes.dreamOrbSize, height: DesignSystem.Sizes.dreamOrbSize)
                 
+                Spacer(minLength: 20)
+                    .frame(height: 20)
+                
                 // Show mode toggle only when not recording/saving/saved AND (not clipped OR extending)
                 if vm.state != .recording && vm.state != .saving && vm.state != .saved && (vm.state != .clipped || vm.isExtending) {
                     ModeToggle(selection: $mode, disabled: false)
@@ -116,13 +121,20 @@ public struct ContentView: View {
                     ZStack {
                         // Mic button – show only in Voice
                         if mode == .voice {
-                            Button { vm.startOrStop() } label: {
-                                Image(systemName: icon(for: vm.state))
-                                    .resizable()
-                                    .frame(width: DesignSystem.Sizes.largeButtonHeight, height: DesignSystem.Sizes.largeButtonHeight)
-                                    .foregroundStyle(color(for: vm.state))
+                            if Config.recordPageRedesignCustomButton {
+                                RecordButton(isRecording: vm.state == .recording) {
+                                    vm.startOrStop()
+                                }
+                            } else {
+                                // Legacy button
+                                Button { vm.startOrStop() } label: {
+                                    Image(systemName: icon(for: vm.state))
+                                        .resizable()
+                                        .frame(width: DesignSystem.Sizes.largeButtonHeight, height: DesignSystem.Sizes.largeButtonHeight)
+                                        .foregroundStyle(color(for: vm.state))
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
 
                         // Text entry – show only in Text
@@ -243,12 +255,18 @@ public struct ContentView: View {
 
     private func label(for s: CaptureState) -> String {
         switch s {
-        case .idle:     "Record a New Dream"
-        case .recording:"Recording…"
-        case .clipped:   "Successfully recorded!"
-        case .saving:   "Saving Dream…"
-        case .saved:    "Saved"
-        case .failed(let msg): msg
+        case .idle:     
+            return vm.isExtending ? "Continue Recording" : "Record a New Dream"
+        case .recording:
+            return "Recording…"
+        case .clipped:   
+            return vm.isExtending ? "Part recorded, keep going!" : "Successfully recorded!"
+        case .saving:   
+            return "Saving Dream…"
+        case .saved:    
+            return "Saved"
+        case .failed(let msg): 
+            return msg
         }
     }
 

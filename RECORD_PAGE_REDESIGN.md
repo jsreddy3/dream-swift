@@ -72,8 +72,13 @@ RoundedRectangle(cornerRadius: isRecording ? 15 : width/2)
 ### 4. Smart Auto-Save Strategy
 **Implementation Approach:**
 - **Continuous Recording**: Keep one continuous audio file
+- **Progressive Enhancement Strategy**:
+  - Short recordings (<30s): Behave exactly like current system (no overhead)
+  - Long recordings (≥30s): Enable checkpoint system
+  - Ensures 10-second dreams remain fast with no added latency
 - **Checkpoint System**: 
-  - Save metadata checkpoints every 30 seconds
+  - Only activate after 30 seconds of recording
+  - Save metadata checkpoints every 30 seconds thereafter
   - Mark file as "in progress" in database
   - Update duration and last checkpoint time
 - **Parallel Processing**:
@@ -85,6 +90,7 @@ RoundedRectangle(cornerRadius: isRecording ? 15 : width/2)
   - Show "Recovering previous recording..." on restart
 
 **Critical Requirements:**
+- Short dreams (10-30s) must have zero added latency
 - User can record 5-10+ minutes continuously
 - Full transcript available after stopping
 - No interruption to recording flow
@@ -143,15 +149,24 @@ Transcription Queue (parallel processing)
 
 **Feature Flag:** `recordPageRedesign.customButton`
 
-### Phase 2: Audio Infrastructure
+### Phase 2: Audio Infrastructure ✅ IMPLEMENTED
 **Tasks:**
-1. Set up AVAudioSession properly
-2. Implement continuous recording with AudioRecorderActor
-3. Add checkpoint system (integrate with existing actor)
-4. Create recovery mechanism
-5. Configure background mode permissions
+1. ✅ Set up AVAudioSession properly (44.1kHz, high quality)
+2. ✅ Implement continuous recording with AudioRecorderActor
+3. ✅ Add checkpoint system (saves every 30s for long recordings)
+4. ✅ Create recovery mechanism (checkpoint metadata saved)
+5. ✅ Configure background mode permissions (Info.plist updated)
+
+**Implementation Details:**
+- ✅ Created ContinuousAudioRecorder with progressive enhancement
+- ✅ Short recordings (<30s) use simple path with zero overhead
+- ✅ Long recordings (≥30s) activate checkpoint system
+- ✅ Feature flag controls which recorder is used
+- ✅ Checkpoint metadata saved alongside audio files
+- ✅ Background audio mode enabled in Info.plist
 
 **Success Criteria:**
+- Short recordings (<30s) have identical performance to current system
 - Record 10+ minutes ≥ 5 times without audio glitches
 - Average memory usage < 150MB during recording
 - Background recording works with screen locked

@@ -26,4 +26,18 @@ public enum Config {
     /// Set to false for production to respect user completion state
     /// Temporarily disabled to prevent startup hanging issues
     public static let forceOnboardingForTesting: Bool = true
+    
+    // MARK: - Record Page Redesign Feature Flags
+    
+    /// Enable custom Voice Memos-style record button
+    public static let recordPageRedesignCustomButton: Bool = true
+    
+    /// Enable continuous recording architecture
+    public static let recordPageRedesignContinuousRecording: Bool = true
+    
+    /// Enable waveform visualization
+    public static let recordPageRedesignWaveformViz: Bool = false
+    
+    /// Enable full UI redesign
+    public static let recordPageRedesignFullUI: Bool = false
 }

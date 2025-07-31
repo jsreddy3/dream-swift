@@ -1,8 +1,9 @@
 //
-//  AudioRecorderActor.swift
+//  AudioRecorderActor_BACKUP.swift
 //  Infrastructure
 //
-//  Created by DreamFinder.
+//  BACKUP COPY - Original segmented recording implementation
+//  Created before Phase 2 continuous recording changes
 //
 #if os(iOS) || os(visionOS)        // 📱 compile only for iOS-family builds
 
@@ -13,7 +14,6 @@ private var isPreview: Bool {
 import Foundation
 import AVFoundation
 import DomainLogic          // gives us AudioRecorder, RecordingHandle, CompletedSegment
-import Configuration        // for feature flags
 
 /// Errors that may surface during the life-cycle of an audio capture session.
 public enum RecorderError: Error, LocalizedError, Sendable {
@@ -37,49 +37,19 @@ public actor AudioRecorderActor: AudioRecorder, Sendable {
 
     private var recorder: AVAudioRecorder?
     private var currentURL: URL?
-    private var recordingStartTime: Date?
-    private let continuousRecorder: ContinuousAudioRecorder?
-    
-    // MARK: - Logging
-    
-    private func log(_ message: String, level: String = "INFO") {
-        let timestamp = ISO8601DateFormatter().string(from: Date())
-        print("[AudioRecorder] [\(level)] [\(timestamp)] \(message)")
-    }
 
     // MARK: – Public API (AudioRecorder)
     
-    public init() {
-        // Can't call actor-isolated method from init
-        // Will log on first use instead
-        
-        // Initialize continuous recorder if feature flag is enabled
-        if Config.recordPageRedesignContinuousRecording {
-            continuousRecorder = ContinuousAudioRecorder()
-        } else {
-            continuousRecorder = nil
-        }
-    }
+    public init() {}
 
     public func begin() async throws -> RecordingHandle {
-        // Use continuous recorder if enabled
-        if let continuous = continuousRecorder {
-            log("Delegating to continuous recorder")
-            return try await continuous.begin()
-        }
-        
-        // Otherwise use original implementation
-        log("begin() called - segmented recording mode")
-        
         // 1. Request or validate permission up front.
         
         if isPreview {
-                log("Preview mode - returning mock handle")
                 return RecordingHandle(segmentID: UUID())
             }
         
         #if os(iOS)
-        log("Checking microphone permission...")
         let granted: Bool
         if #available(iOS 17.0, *) {
             granted = await AVAudioApplication.requestRecordPermission()
@@ -90,121 +60,76 @@ public actor AudioRecorderActor: AudioRecorder, Sendable {
                 }
             }
         }
-        log("Microphone permission: \(granted)")
-        guard granted else { 
-            log("Permission denied", level: "ERROR")
-            throw RecorderError.permissionDenied 
-        }
+        guard granted else { throw RecorderError.permissionDenied }
         #endif
        
 
         // 2. Configure the shared audio session for speech-friendly capture.
-        log("Configuring AVAudioSession...")
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(.playAndRecord, options: [.defaultToSpeaker])
             try session.setActive(true)
-            log("AVAudioSession configured successfully")
         } catch {
-            log("Failed to configure AVAudioSession: \(error)", level: "ERROR")
             throw RecorderError.underlying(error)
         }
 
         // 3. Generate a unique file URL in the app's caches directory.
-        let fileID = UUID().uuidString
         let url = FileManager.default
             .urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent(fileID)
+            .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("m4a")
-        log("Generated file URL: \(url.lastPathComponent)")
 
         // 4. Create and start the AVAudioRecorder.
-        // Updated settings per plan: higher quality for speech
         let settings: [String: Any] = [
             AVFormatIDKey: kAudioFormatMPEG4AAC,
-            AVSampleRateKey: 44_100,  // Increased from 32kHz
+            AVSampleRateKey: 32_000,
             AVNumberOfChannelsKey: 1,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue  // Added high quality
+            AVEncoderBitRateKey: 64_000
         ]
-        log("Audio settings: format=AAC, sampleRate=44.1kHz, channels=1, quality=high")
 
         do {
             let newRecorder = try AVAudioRecorder(url: url, settings: settings)
-            let started = newRecorder.record()
+            newRecorder.record()
             recorder = newRecorder
             currentURL = url
-            recordingStartTime = Date()
-            log("Recording started: \(started), file: \(fileID).m4a")
         } catch {
-            log("Failed to start recording: \(error)", level: "ERROR")
             throw RecorderError.underlying(error)
         }
 
         // 5. Hand the domain layer a fresh handle it can later correlate.
-        let handle = RecordingHandle(segmentID: UUID())
-        log("Returning handle with segmentID: \(handle.segmentID)")
-        return handle
+        return RecordingHandle(segmentID: UUID())
     }
 
     public func stop(_ handle: RecordingHandle) async throws -> CompletedSegment {
-        // Use continuous recorder if enabled
-        if let continuous = continuousRecorder {
-            log("Delegating stop to continuous recorder")
-            return try await continuous.stop(handle)
-        }
-        
-        // Otherwise use original implementation
-        log("stop() called with handle: \(handle.segmentID) - segmented mode")
         
         if isPreview {
-                log("Preview mode - returning mock segment")
                 return CompletedSegment(segmentID: handle.segmentID,
                                         filename: "\(UUID()).m4a",
                                         duration: 0)
             }
         guard let r = recorder, let url = currentURL else {
-            log("No active session", level: "ERROR")
             throw RecorderError.noActiveSession
         }
 
         let duration = r.currentTime
         r.stop()
-        
-        // Calculate actual recording duration
-        let actualDuration = recordingStartTime.map { Date().timeIntervalSince($0) } ?? duration
-        log("Recording stopped - duration: \(duration)s, actual: \(actualDuration)s")
 
         // ---- NEW: move the clip out of Caches into ~/Library/Dreams ----
         let dreamsRoot = FileManager.default
             .urls(for: .libraryDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Dreams", isDirectory: true)
-        
-        log("Creating Dreams directory if needed...")
         try? FileManager.default.createDirectory(at: dreamsRoot,
                                                  withIntermediateDirectories: true)
-        
         let permanentURL = dreamsRoot.appendingPathComponent(url.lastPathComponent)
-        log("Moving file from cache to library: \(url.lastPathComponent)")
-        
-        do {
-            try FileManager.default.moveItem(at: url, to: permanentURL)
-            log("File moved successfully to: \(permanentURL.path)")
-        } catch {
-            log("Failed to move file: \(error)", level: "ERROR")
-            throw RecorderError.underlying(error)
-        }
+        try FileManager.default.moveItem(at: url, to: permanentURL)
         // ----------------------------------------------------------------
 
         recorder = nil
         currentURL = nil
-        recordingStartTime = nil
-        
-        let segment = CompletedSegment(segmentID: handle.segmentID,
-                                       filename: permanentURL.lastPathComponent,
-                                       duration: duration)
-        log("Returning completed segment: \(segment.filename), duration: \(segment.duration)s")
 
-        return segment
+        return CompletedSegment(segmentID: handle.segmentID,
+                                filename: permanentURL.lastPathComponent,
+                                duration: duration)
     }
 }
 #endif
