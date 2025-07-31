@@ -88,9 +88,10 @@ public struct ProfileView: View {
                         // Hero Section - Dream Keeper
                         DreamArchetypeView(
                             archetype: viewModel.currentArchetype,
-                            dreamStreakDays: viewModel.userProfile?.statistics.dreamStreakDays ?? 0
+                            totalDreams: viewModel.statistics.totalDreams,
+                            dreamDates: viewModel.dreamDates
                         )
-                            .padding(.top, viewModel.isCalculating ? 20 : 50)
+                            .padding(.top, viewModel.isCalculating ? 40 : 70)
                             .padding(.bottom, 30)
                         
                         // Today's Dream Wisdom
@@ -159,7 +160,8 @@ public struct ProfileView: View {
 
 struct DreamArchetypeView: View {
     let archetype: DreamArchetype
-    let dreamStreakDays: Int
+    let totalDreams: Int
+    let dreamDates: [Date]
     @State private var particleSystem = ParticleSystem()
     
     var body: some View {
@@ -191,8 +193,8 @@ struct DreamArchetypeView: View {
                 .font(DesignSystem.Typography.title2())
                 .foregroundColor(DesignSystem.Colors.textPrimary)
             
-            // Dream Streak
-            Text("\(dreamStreakDays) \(dreamStreakDays == 1 ? "night" : "nights") of dreams")
+            // Total Dreams
+            Text("\(totalDreams) \(totalDreams == 1 ? "dream" : "dreams") recorded")
                 .font(DesignSystem.Typography.bodyMedium())
                 .foregroundColor(DesignSystem.Colors.textTertiary)
             
@@ -204,7 +206,7 @@ struct DreamArchetypeView: View {
                 .padding(.horizontal, 40)
             
             // Dream Pattern Chart
-            DreamPatternChart()
+            DreamPatternChart(dreamDates: dreamDates)
                 .frame(height: 60)
                 .padding(.horizontal, 40)
         }
@@ -215,6 +217,7 @@ struct DreamArchetypeView: View {
 
 struct DreamPatternChart: View {
     let days = 30
+    let dreamDates: [Date]
     @State private var dreamData: [Bool] = []
     
     var body: some View {
@@ -222,29 +225,40 @@ struct DreamPatternChart: View {
             ForEach(0..<days, id: \.self) { day in
                 Circle()
                     .fill(dreamData.indices.contains(day) && dreamData[day] 
-                        ? DesignSystem.Colors.textPrimary 
-                        : DesignSystem.Colors.textPrimary.opacity(0.2))
+                        ? DesignSystem.Colors.ember 
+                        : DesignSystem.Colors.textPrimary.opacity(0.1))
                     .frame(width: DesignSystem.Sizes.iconSmall, height: DesignSystem.Sizes.iconSmall)
             }
         }
         .onAppear {
-            // Create a pattern showing recent dream activity
-            // Since we don't have individual dates, show concentrated recent activity
-            dreamData = (0..<days).map { day in
-                // More likely to have dreams in recent days (right side)
-                let daysAgo = days - day - 1
-                if daysAgo < 7 {
-                    // Last week - high probability
-                    return Double.random(in: 0...1) > 0.3
-                } else if daysAgo < 14 {
-                    // Two weeks ago - medium probability
-                    return Double.random(in: 0...1) > 0.6
-                } else {
-                    // Older - low probability
-                    return Double.random(in: 0...1) > 0.8
+            calculateDreamPattern()
+        }
+    }
+    
+    private func calculateDreamPattern() {
+        // Create a calendar to work with dates
+        let calendar = Calendar.current
+        let today = Date()
+        
+        // Initialize all days as false
+        var pattern = Array(repeating: false, count: days)
+        
+        // Mark days with dreams
+        for dreamDate in dreamDates {
+            let daysBetween = calendar.dateComponents([.day], from: dreamDate, to: today).day ?? 0
+            
+            // Only include dreams from the last 30 days
+            if daysBetween >= 0 && daysBetween < days {
+                // Convert to array index (0 = 30 days ago, 29 = today)
+                let index = days - daysBetween - 1
+                if index >= 0 && index < days {
+                    pattern[index] = true
                 }
             }
         }
+        
+        // Update pattern
+        self.dreamData = pattern
     }
 }
 

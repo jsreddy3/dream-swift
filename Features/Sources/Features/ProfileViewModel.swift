@@ -18,6 +18,7 @@ public class ProfileViewModel: ObservableObject {
     @Published var error: Error?
     @Published var isShowingCachedData = false
     @Published var cacheAge: String?
+    @Published var dreamDates: [Date] = []
     
     private let profileStore: RemoteProfileStore
     private let dreamStore: DreamStore
@@ -42,6 +43,8 @@ public class ProfileViewModel: ObservableObject {
             
             // If cache is not expired and we're not forcing, we're done
             if !cached.isExpired && !forceCalculate {
+                // Still load dream dates for the pattern chart
+                await loadDreamDates()
                 return
             }
         }
@@ -80,6 +83,9 @@ public class ProfileViewModel: ObservableObject {
                 startPollingForCompletion()
             }
             
+            // Load dream dates for the pattern chart
+            await loadDreamDates()
+            
             isLoading = false
         } catch {
             self.error = error
@@ -89,6 +95,8 @@ public class ProfileViewModel: ObservableObject {
             if userProfile != nil {
                 // We already have data displayed, just show error indicator
                 self.isShowingCachedData = true
+                // Still load dream dates
+                await loadDreamDates()
             } else {
                 // No cached data, fallback to local calculation
                 await loadProfileFromLocalDreams()
@@ -203,6 +211,7 @@ public class ProfileViewModel: ObservableObject {
                 self.recentSymbols = ["🌟", "🌊", "🦋"] // Default symbols
                 self.emotionalData = generateDefaultEmotionalData()
                 self.statistics = calculateStatistics(from: dreams)
+                self.dreamDates = dreams.map { $0.created_at }
                 self.isLoading = false
             }
         } catch {
@@ -311,6 +320,20 @@ public class ProfileViewModel: ObservableObject {
             .reduce(0, +)
         
         return totalDuration > 0 ? totalDuration : nil
+    }
+    
+    private func loadDreamDates() async {
+        do {
+            let dreams = try await dreamStore.allDreams()
+            await MainActor.run {
+                self.dreamDates = dreams.map { $0.created_at }
+            }
+        } catch {
+            // If loading fails, keep empty array
+            await MainActor.run {
+                self.dreamDates = []
+            }
+        }
     }
 }
 
