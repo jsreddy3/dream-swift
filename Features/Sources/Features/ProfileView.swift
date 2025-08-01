@@ -3,6 +3,8 @@ import CoreModels
 import Infrastructure
 import DomainLogic
 import Combine
+import MessageUI
+import UIKit
 
 // MARK: - Main Profile View
 
@@ -113,6 +115,11 @@ public struct ProfileView: View {
                         
                         // Dream Statistics
                         DreamStatisticsView(statistics: viewModel.statistics)
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 30)
+                        
+                        // Send Feedback Button
+                        FeedbackButtonView()
                             .padding(.horizontal, 24)
                             .padding(.bottom, 100) // Space for tab bar
                         
@@ -505,6 +512,158 @@ struct Particle {
         position.x += velocity.dx
         position.y += velocity.dy
         lifetime -= 1
+    }
+}
+
+
+// MARK: - Feedback Button View
+
+struct FeedbackButtonView: View {
+    @State private var showingMessageComposer = false
+    @State private var messageResult: Result<MessageComposeResult, Error>? = nil
+    @State private var showingFallbackAlert = false
+    @State private var isPressed = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Help us improve")
+                .font(DesignSystem.Typography.headline())
+                .foregroundColor(DesignSystem.Colors.textPrimary)
+            
+            Button(action: {
+                print("DEBUG: Feedback button tapped")
+                let canSendText = MFMessageComposeViewController.canSendText()
+                print("DEBUG: Can send text: \(canSendText)")
+                
+                if canSendText {
+                    print("DEBUG: Opening message composer")
+                    showingMessageComposer = true
+                } else {
+                    print("DEBUG: Messages not available, showing fallback alert")
+                    showingFallbackAlert = true
+                }
+            }) {
+                HStack(spacing: 12) {
+                    Image(systemName: "message")
+                        .font(.system(size: 20))
+                        .foregroundColor(DesignSystem.Colors.ember)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Send Feedback")
+                            .font(DesignSystem.Typography.bodyMedium())
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                        
+                        Text("Willing to send us feedback?")
+                            .font(DesignSystem.Typography.caption())
+                            .foregroundColor(DesignSystem.Colors.textTertiary)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14))
+                        .foregroundColor(DesignSystem.Colors.textQuaternary)
+                }
+                .padding(DesignSystem.Spacing.medium)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(DesignSystem.Colors.cardBackground)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(DesignSystem.Colors.cardBorder, lineWidth: 0.5)
+                        )
+                )
+                .scaleEffect(isPressed ? 0.95 : 1.0)
+                .opacity(isPressed ? 0.8 : 1.0)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .contentShape(Rectangle()) // Ensure entire button area is tappable
+            .animation(.easeInOut(duration: 0.1), value: isPressed)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        if !isPressed {
+                            isPressed = true
+                        }
+                    }
+                    .onEnded { _ in
+                        isPressed = false
+                    }
+            )
+            .sheet(isPresented: $showingMessageComposer) {
+                FeedbackMessageComposer(result: $messageResult)
+            }
+            .alert("Text Feedback", isPresented: $showingFallbackAlert) {
+                Button("Copy Phone Number") {
+                    UIPasteboard.general.string = "+1 707-653-6763"
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("Messages app is not available. You can copy our phone number and send feedback manually:\n\n+1 707-653-6763")
+            }
+        }
+    }
+}
+
+// MARK: - Message Composer
+
+struct FeedbackMessageComposer: UIViewControllerRepresentable {
+    @Binding var result: Result<MessageComposeResult, Error>?
+    @Environment(\.dismiss) private var dismiss
+    
+    func makeUIViewController(context: Context) -> MFMessageComposeViewController {
+        let messageComposer = MFMessageComposeViewController()
+        messageComposer.messageComposeDelegate = context.coordinator
+        
+        // Pre-fill phone number
+        messageComposer.recipients = ["+17076536763"]
+        
+        // Pre-fill message body
+        let messageBody = "Hi! I'm a beta tester of Dream App. Here's some feedback I had: "
+        messageComposer.body = messageBody
+        
+        return messageComposer
+    }
+    
+    func updateUIViewController(_ uiViewController: MFMessageComposeViewController, context: Context) {
+        // No updates needed
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    @MainActor
+    class Coordinator: NSObject, MFMessageComposeViewControllerDelegate {
+        var parent: FeedbackMessageComposer
+        
+        init(_ parent: FeedbackMessageComposer) {
+            self.parent = parent
+        }
+        
+        nonisolated func messageComposeViewController(
+            _ controller: MFMessageComposeViewController,
+            didFinishWith result: MessageComposeResult
+        ) {
+            Task { @MainActor in
+                print("DEBUG: Message composer finished with result: \(result.rawValue)")
+                parent.result = .success(result)
+                
+                // Log the result for debugging
+                switch result {
+                case .cancelled:
+                    print("DEBUG: User cancelled message")
+                case .sent:
+                    print("DEBUG: Message sent successfully")
+                case .failed:
+                    print("DEBUG: Message failed to send")
+                @unknown default:
+                    print("DEBUG: Unknown message result")
+                }
+                
+                parent.dismiss()
+            }
+        }
     }
 }
 

@@ -208,9 +208,9 @@ public actor SyncingDreamStore: DreamStore, Sendable {
         return fresh
     }
 
-    public func requestAnalysis(for id: UUID) async throws {
+    public func requestAnalysis(for id: UUID, type: AnalysisType? = nil) async throws {
         #if DEBUG
-        print("DEBUG: SyncingDreamStore.requestAnalysis called, isOnline: \(isOnline)")
+        print("DEBUG: SyncingDreamStore.requestAnalysis called, isOnline: \(isOnline), type: \(type?.rawValue ?? "nil")")
         #endif
         // delegate straight to remote if we're online,
         // otherwise enqueue for later just like other ops.
@@ -219,7 +219,7 @@ public actor SyncingDreamStore: DreamStore, Sendable {
             print("DEBUG: Calling remote.requestAnalysis with timeout protection")
             #endif
             try await withTimeout(seconds: 30.0) { [self] in
-                try await remote.requestAnalysis(for: id)
+                try await remote.requestAnalysis(for: id, type: type)
             }
         } else {
             #if DEBUG
@@ -243,6 +243,28 @@ public actor SyncingDreamStore: DreamStore, Sendable {
         } else {
             #if DEBUG
             print("DEBUG: Offline, can't do expanded analysis")
+            #endif
+            throw SyncingDreamStoreError.timeout
+        }
+    }
+    
+    public func generateImage(for id: UUID) async throws -> Dream {
+        #if DEBUG
+        print("DEBUG: SyncingDreamStore.generateImage called, isOnline: \(isOnline)")
+        #endif
+        if isOnline {
+            #if DEBUG
+            print("DEBUG: Calling remote.generateImage with timeout protection")
+            #endif
+            let dream = try await withTimeout(seconds: 30.0) { [self] in
+                try await remote.generateImage(for: id)
+            }
+            // Update local copy with the new image info
+            try await local.upsert(dream)
+            return dream
+        } else {
+            #if DEBUG
+            print("DEBUG: Offline, can't generate image")
             #endif
             throw SyncingDreamStoreError.timeout
         }

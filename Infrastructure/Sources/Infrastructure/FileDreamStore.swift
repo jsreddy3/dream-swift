@@ -14,12 +14,14 @@ public enum DreamStoreError: Error, LocalizedError, Sendable {
     case dreamNotFound(UUID)
     case segmentNotFound(UUID)
     case io(Error)
+    case notSupported
 
     public var errorDescription: String? {
         switch self {
         case .dreamNotFound(let id):    "Dream \(id) could not be located on disk."
         case .segmentNotFound(let id):  "Segment \(id) is no longer present."
         case .io(let e):                e.localizedDescription
+        case .notSupported:             "This operation is not supported offline."
         }
     }
 }
@@ -82,6 +84,11 @@ public actor FileDreamStore: DreamStore, Sendable {
     public func deleteDream(_ id: UUID) async throws {
         let url = root.appendingPathComponent("\(id).json")
         try FileManager.default.removeItem(at: url)
+    }
+    
+    public func generateImage(for id: UUID) async throws -> Dream {
+        // FileDreamStore doesn't support image generation (offline)
+        throw DreamStoreError.notSupported
     }
 
     public func segments(dreamID: UUID) async throws -> [Segment] {
@@ -160,13 +167,23 @@ public actor FileDreamStore: DreamStore, Sendable {
         // 1️⃣ read what we have
         var dream = try await read(id)
         
-        // 2️⃣ fallback: use transcript (if any) or “”
+        // 2️⃣ fallback: use transcript (if any) or ""
         let summary = dream.transcript ?? ""
         guard dream.summary == nil else { return dream.summary! }   // already summarised
         
         dream.summary = summary
         try await write(dream)        // persist so UI sees it
         return summary
+    }
+    
+    public func requestAnalysis(for id: UUID, type: AnalysisType? = nil) async throws {
+        // FileDreamStore can't perform analysis (offline)
+        throw DreamStoreError.notSupported
+    }
+    
+    public func requestExpandedAnalysis(for id: UUID) async throws {
+        // FileDreamStore can't perform expanded analysis (offline)
+        throw DreamStoreError.notSupported
     }
     
     public func generateSummaryFallback(id: UUID, text: String) async throws {

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit                    // UISelectionFeedbackGenerator
 import Infrastructure
 import DomainLogic
 import CoreModels
@@ -59,6 +60,12 @@ public struct MainTabView: View {
         }
         .background(Color.clear)
         .tint(DesignSystem.Colors.ember)
+        .onChange(of: selectedTab) { newTab in
+            // Provide subtle haptic feedback for tab switches
+            // Only triggers on actual tab changes, not repeated taps
+            let selectionFeedback = UISelectionFeedbackGenerator()
+            selectionFeedback.selectionChanged()
+        }
         .onAppear {
             // Make TabView background transparent
             UITabBar.appearance().isTranslucent = true

@@ -13,14 +13,24 @@ public enum RemoteError: Error, LocalizedError, Sendable {
     case notFound
     case badStatus(Int, String)
     case io(Error)
+    case contentPolicyViolation
 
     public var errorDescription: String? {
         switch self {
         case .notFound:              "Resource not found on server."
         case .badStatus(let c, _):   "Server returned HTTP \(c)."
         case .io(let e):             e.localizedDescription
+        case .contentPolicyViolation: "This dream contains content that was flagged by our copyright and safety system"
         }
     }
+}
+
+// Response types
+struct ImageGenerationResponse: Decodable {
+    let url: String
+    let prompt: String
+    let generated_at: String
+    let message: String
 }
 
 public actor RemoteDreamStore: DreamStore, Sendable {
@@ -58,7 +68,49 @@ public actor RemoteDreamStore: DreamStore, Sendable {
         self.stream = AsyncStream { c = $0 }
         self.continuation = c
         encoder.dateEncodingStrategy = .iso8601
-        decoder.dateDecodingStrategy = .iso8601
+        
+        // Custom date decoder to handle fractional seconds from backend
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let dateString = try container.decode(String.self)
+            
+            // Create fresh formatters for each attempt
+            let formatter = DateFormatter()
+            formatter.timeZone = TimeZone(abbreviation: "UTC")
+            
+            // Try with fractional seconds first (backend format)
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+            if let date = formatter.date(from: dateString) {
+                return date
+            }
+            
+            // Try with milliseconds
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+            if let date = formatter.date(from: dateString) {
+                return date
+            }
+            
+            // Fall back to standard ISO8601 with Z
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+            if let date = formatter.date(from: dateString) {
+                return date
+            }
+            
+            // Try without Z
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+            if let date = formatter.date(from: dateString) {
+                return date
+            }
+            
+            // Try ISO8601 formatter as last resort
+            let iso8601Formatter = ISO8601DateFormatter()
+            iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = iso8601Formatter.date(from: dateString) {
+                return date
+            }
+            
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Expected date string to be ISO8601-formatted. Got: \(dateString)")
+        }
     }
 
     // MARK: – DreamStore entry-points
@@ -273,13 +325,23 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     }
 
     // POST /dreams/{id}/generate-analysis
-    public func requestAnalysis(for id: UUID) async throws {
-        print("DEBUG: RemoteDreamStore.requestAnalysis called for id: \(id)")
+    public func requestAnalysis(for id: UUID, type: AnalysisType? = nil) async throws {
+        print("DEBUG: RemoteDreamStore.requestAnalysis called for id: \(id), type: \(type?.rawValue ?? "nil")")
         do {
+            struct AnalysisRequest: Encodable {
+                let force_regenerate: Bool
+                let analysis_type: String?
+            }
+            
+            let requestBody = AnalysisRequest(
+                force_regenerate: false,
+                analysis_type: type?.rawValue
+            )
+            
             let req = try await makeRequest(
                 path: "dreams/\(id.uuidString.lowercased())/generate-analysis",
                 method: "POST",
-                json: ["force_regenerate": false]
+                json: requestBody
             )
             print("DEBUG: Request created: \(req.url?.absoluteString ?? "no url")")
             print("DEBUG: About to perform request...")
@@ -304,6 +366,62 @@ public actor RemoteDreamStore: DreamStore, Sendable {
             print("DEBUG: Expanded analysis request completed successfully")
         } catch {
             print("DEBUG: requestExpandedAnalysis error: \(error)")
+            throw error
+        }
+    }
+    
+    public func generateImage(for id: UUID) async throws -> Dream {
+        print("DEBUG: RemoteDreamStore.generateImage called for id: \(id)")
+        do {
+            var req = try await makeRequest(
+                path: "dreams/\(id.uuidString.lowercased())/generate-image",
+                method: "POST"
+            )
+            print("DEBUG: Image generation request created: \(req.url?.absoluteString ?? "no url")")
+            
+            // Image generation can take 15-20 seconds, so we need a longer timeout
+            req.timeoutInterval = 30.0  // 30 seconds timeout
+            
+            // Use a custom session configuration for this long-running request
+            let config = URLSessionConfiguration.default
+            config.timeoutIntervalForRequest = 30.0
+            config.timeoutIntervalForResource = 45.0
+            let imageSession = URLSession(configuration: config)
+            
+            let (data, resp) = try await imageSession.data(for: req)
+            
+            guard let httpResp = resp as? HTTPURLResponse else {
+                throw RemoteError.io(URLError(.badServerResponse))
+            }
+            
+            if httpResp.statusCode == 404 {
+                throw RemoteError.notFound
+            }
+            
+            if httpResp.statusCode == 422 {
+                // Check if it's a content policy violation
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let detail = json["detail"] as? [String: Any],
+                   let error = detail["error"] as? String,
+                   error == "content_policy_violation" {
+                    throw RemoteError.contentPolicyViolation
+                }
+                let body = String(data: data, encoding: .utf8) ?? "<no body>"
+                throw RemoteError.badStatus(httpResp.statusCode, body)
+            }
+            
+            if httpResp.statusCode != 200 {
+                let body = String(data: data, encoding: .utf8) ?? "<no body>"
+                throw RemoteError.badStatus(httpResp.statusCode, body)
+            }
+            
+            // Parse the response to get the updated dream
+            let imageResponse = try decoder.decode(ImageGenerationResponse.self, from: data)
+            
+            // Fetch and return the updated dream
+            return try await getDream(id)
+        } catch {
+            print("DEBUG: generateImage error: \(error)")
             throw error
         }
     }

@@ -6,6 +6,31 @@ public enum DreamState: String, Codable, Sendable {
     case video_generated = "video_generated"
 }
 
+public enum AnalysisType: String, Codable, Sendable {
+    case micro = "micro"           // ≤50 words: Brief reflection
+    case short = "short"           // 51-200 words: Concise analysis  
+    case medium = "medium"         // 201-500 words: Standard analysis
+    case comprehensive = "comprehensive" // 501+ words: Detailed interpretation
+    
+    public var displayName: String {
+        switch self {
+        case .micro: return "Brief Reflection"
+        case .short: return "Concise Analysis"
+        case .medium: return "Standard Analysis"
+        case .comprehensive: return "Comprehensive Interpretation"
+        }
+    }
+    
+    public var loadingMessage: String {
+        switch self {
+        case .micro: return "Generating brief reflection..."
+        case .short: return "Creating concise analysis..."
+        case .medium: return "Analyzing dream themes..."
+        case .comprehensive: return "Crafting detailed interpretation..."
+        }
+    }
+}
+
 public struct Dream: Identifiable, Equatable, Sendable, Codable {
     public let id: UUID
     public var created_at: Date
@@ -20,6 +45,12 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
     public var analysis: String?
     public var expandedAnalysis: String?
     
+    // Image generation fields
+    public var imageUrl: String?
+    public var imagePrompt: String?
+    public var imageGeneratedAt: Date?
+    public var imageStatus: String?
+    
     enum CodingKeys: String, CodingKey {
         case id, created_at, title, transcript, segments, state
         case videoS3Key = "video_s3_key"
@@ -27,6 +58,10 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
         case additionalInfo  = "additional_info"
         case analysis
         case expandedAnalysis = "expanded_analysis"
+        case imageUrl = "image_url"
+        case imagePrompt = "image_prompt"
+        case imageGeneratedAt = "image_generated_at"
+        case imageStatus = "image_status"
     }
 
     public init(
@@ -40,7 +75,11 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
         summary: String? = nil,
         additionalInfo: String? = nil,
         analysis: String? = nil,
-        expandedAnalysis: String? = nil
+        expandedAnalysis: String? = nil,
+        imageUrl: String? = nil,
+        imagePrompt: String? = nil,
+        imageGeneratedAt: Date? = nil,
+        imageStatus: String? = nil
     ) {
         self.id = id
         self.created_at = created_at
@@ -53,6 +92,10 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
         self.additionalInfo = additionalInfo
         self.analysis = analysis
         self.expandedAnalysis = expandedAnalysis
+        self.imageUrl = imageUrl
+        self.imagePrompt = imagePrompt
+        self.imageGeneratedAt = imageGeneratedAt
+        self.imageStatus = imageStatus
     }
 
     // MARK: Codable
@@ -73,6 +116,10 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
         additionalInfo = try c.decodeIfPresent(String.self, forKey: .additionalInfo)
         analysis   = try c.decodeIfPresent(String.self, forKey: .analysis)
         expandedAnalysis = try c.decodeIfPresent(String.self, forKey: .expandedAnalysis)
+        imageUrl = try c.decodeIfPresent(String.self, forKey: .imageUrl)
+        imagePrompt = try c.decodeIfPresent(String.self, forKey: .imagePrompt)
+        imageGeneratedAt = try c.decodeIfPresent(Date.self, forKey: .imageGeneratedAt)
+        imageStatus = try c.decodeIfPresent(String.self, forKey: .imageStatus)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -88,6 +135,45 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
         try c.encodeIfPresent(additionalInfo, forKey: .additionalInfo)
         try c.encodeIfPresent(analysis, forKey: .analysis)
         try c.encodeIfPresent(expandedAnalysis, forKey: .expandedAnalysis)
+        try c.encodeIfPresent(imageUrl, forKey: .imageUrl)
+        try c.encodeIfPresent(imagePrompt, forKey: .imagePrompt)
+        try c.encodeIfPresent(imageGeneratedAt, forKey: .imageGeneratedAt)
+        try c.encodeIfPresent(imageStatus, forKey: .imageStatus)
+    }
+    
+    // MARK: - Content Analysis Utilities
+    
+    /// Calculate the word count of the dream content
+    public var contentWordCount: Int {
+        // Prefer transcript over summary for word count calculation
+        let content = transcript ?? summary ?? ""
+        guard !content.isEmpty else { return 0 }
+        
+        // Split by whitespace and count non-empty components
+        return content.components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .count
+    }
+    
+    /// Determine the appropriate analysis type based on content length
+    public var suggestedAnalysisType: AnalysisType {
+        let wordCount = contentWordCount
+        
+        switch wordCount {
+        case 0...50:
+            return .micro
+        case 51...200:
+            return .short
+        case 201...500:
+            return .medium
+        default:
+            return .comprehensive
+        }
+    }
+    
+    /// Get the primary content for analysis (transcript if available, otherwise summary)
+    public var primaryContent: String {
+        return transcript ?? summary ?? ""
     }
 }
 

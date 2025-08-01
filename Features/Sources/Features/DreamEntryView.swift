@@ -158,23 +158,63 @@ struct DreamEntryView: View {
                                         .foregroundColor(DesignSystem.Colors.textPrimary)
                                 }
                                 
-                                // Tell Me More button or loading state
-                                if vm.isExpandingAnalysis {
-                                    HStack {
-                                        ProgressView()
-                                            .scaleEffect(0.8)
-                                        Text(vm.expandedAnalysisMessage ?? "Expanding analysis...")
+                                // Buttons row
+                                HStack(spacing: 12) {
+                                    // Tell Me More button or loading state
+                                    if vm.isExpandingAnalysis {
+                                        HStack {
+                                            ProgressView()
+                                                .scaleEffect(0.8)
+                                            Text(vm.expandedAnalysisMessage ?? "Expanding analysis...")
+                                                .font(DesignSystem.Typography.caption())
+                                                .foregroundColor(DesignSystem.Colors.textTertiary)
+                                        }
+                                    } else if vm.dream.expandedAnalysis == nil {
+                                        Button {
+                                            Haptics.light() // Tell Me More tap
+                                            Task {
+                                                await vm.requestExpandedAnalysis()
+                                            }
+                                        } label: {
+                                            Text("Tell Me More")
+                                                .font(DesignSystem.Typography.bodyMedium())
+                                                .foregroundColor(DesignSystem.Colors.ember)
+                                                .padding(.horizontal, 16)
+                                                .padding(.vertical, 8)
+                                                .background(
+                                                    Capsule()
+                                                        .stroke(DesignSystem.Colors.ember, lineWidth: 1)
+                                                )
+                                        }
+                                    }
+                                    
+                                    // Visualize button or content policy message
+                                    if vm.hasContentPolicyViolation {
+                                        Text("This dream contains content that was flagged by our copyright and safety system")
                                             .font(DesignSystem.Typography.caption())
                                             .foregroundColor(DesignSystem.Colors.textTertiary)
-                                    }
-                                } else if vm.dream.expandedAnalysis == nil {
-                                    Button {
-                                        Haptics.light() // Tell Me More tap
-                                        Task {
-                                            await vm.requestExpandedAnalysis()
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 8)
+                                    } else if vm.isGeneratingImage {
+                                        HStack {
+                                            ProgressView()
+                                                .scaleEffect(0.8)
+                                            Text(vm.imageGenerationMessage ?? "Creating dreamscape...")
+                                                .font(DesignSystem.Typography.caption())
+                                                .foregroundColor(DesignSystem.Colors.textTertiary)
                                         }
-                                    } label: {
-                                        Text("Tell Me More")
+                                    } else if vm.dream.imageUrl == nil {
+                                        Button {
+                                            Haptics.light() // Visualize tap
+                                            Task {
+                                                await vm.generateImage()
+                                            }
+                                        } label: {
+                                            HStack(spacing: 6) {
+                                                Image(systemName: "sparkles")
+                                                    .font(.system(size: 14))
+                                                Text("Visualize")
+                                            }
                                             .font(DesignSystem.Typography.bodyMedium())
                                             .foregroundColor(DesignSystem.Colors.ember)
                                             .padding(.horizontal, 16)
@@ -183,7 +223,66 @@ struct DreamEntryView: View {
                                                 Capsule()
                                                     .stroke(DesignSystem.Colors.ember, lineWidth: 1)
                                             )
+                                        }
                                     }
+                                }
+                            }
+                        }
+                        
+                        // Generated Image section (if available)
+                        if let imageUrl = vm.dream.imageUrl {
+                            Divider()
+                            
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Dreamscape")
+                                    .font(DesignSystem.Typography.subheadline())
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                
+                                // Image display with loading state
+                                AsyncImage(url: URL(string: imageUrl)) { phase in
+                                    switch phase {
+                                    case .empty:
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
+                                                .fill(DesignSystem.Colors.cardBackground)
+                                                .frame(height: 300)
+                                            
+                                            ProgressView()
+                                                .scaleEffect(1.2)
+                                        }
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .frame(maxHeight: 400)
+                                            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large))
+                                            .onTapGesture {
+                                                vm.showingImageFullscreen = true
+                                            }
+                                    case .failure(_):
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
+                                                .fill(DesignSystem.Colors.cardBackground)
+                                                .frame(height: 300)
+                                            
+                                            VStack(spacing: 8) {
+                                                Image(systemName: "photo")
+                                                    .font(.system(size: 48))
+                                                    .foregroundColor(DesignSystem.Colors.textTertiary)
+                                                Text("Image unavailable")
+                                                    .font(DesignSystem.Typography.caption())
+                                                    .foregroundColor(DesignSystem.Colors.textTertiary)
+                                            }
+                                        }
+                                    @unknown default:
+                                        EmptyView()
+                                    }
+                                }
+                                
+                                if let generatedAt = vm.dream.imageGeneratedAt {
+                                    Text("Generated \(generatedAt, style: .relative) ago")
+                                        .font(DesignSystem.Typography.caption())
+                                        .foregroundColor(DesignSystem.Colors.textTertiary)
                                 }
                             }
                         }
@@ -267,6 +366,11 @@ struct DreamEntryView: View {
                             .foregroundColor(DesignSystem.Colors.ember)
                     }
                 }
+            }
+        }
+        .sheet(isPresented: $vm.showingImageFullscreen) {
+            if let imageUrl = vm.dream.imageUrl {
+                FullscreenImageView(imageUrl: imageUrl)
             }
         }
     }
@@ -400,10 +504,68 @@ private struct StubStore: DreamStore {
     func getVideoURL(dreamID: UUID) async throws -> URL? { nil }
     func uploads() -> AsyncStream<UploadResult> { .init { _ in } }
     func getDream(_ id: UUID) async throws -> Dream { Dream(title: "Stub") }
-    func requestAnalysis(for id: UUID) async throws {}
+    func requestAnalysis(for id: UUID, type: AnalysisType? = nil) async throws {}
+    func requestExpandedAnalysis(for id: UUID) async throws {}
     func generateSummary(for id: UUID) async throws -> String { "" }
     func deleteDream(_ id: UUID) async throws {}
+    func generateImage(for id: UUID) async throws -> Dream { Dream(title: "Stub") }
 }
 
 
 #endif
+
+// MARK: - Fullscreen Image Viewer
+struct FullscreenImageView: View {
+    let imageUrl: String
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        ZStack {
+            // Dark background
+            Color.black.ignoresSafeArea()
+            
+            // Image with zoom capability
+            AsyncImage(url: URL(string: imageUrl)) { phase in
+                switch phase {
+                case .empty:
+                    ProgressView()
+                        .scaleEffect(1.5)
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .onTapGesture {
+                            dismiss()
+                        }
+                case .failure(_):
+                    VStack(spacing: 16) {
+                        Image(systemName: "photo")
+                            .font(.system(size: 64))
+                            .foregroundColor(.gray)
+                        Text("Failed to load image")
+                            .foregroundColor(.gray)
+                    }
+                @unknown default:
+                    EmptyView()
+                }
+            }
+            
+            // Close button
+            VStack {
+                HStack {
+                    Spacer()
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 30))
+                            .foregroundStyle(.white, .gray.opacity(0.7))
+                    }
+                    .padding()
+                }
+                Spacer()
+            }
+        }
+    }
+}

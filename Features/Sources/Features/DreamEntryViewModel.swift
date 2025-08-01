@@ -4,6 +4,7 @@
 
 import Foundation               // async/await, Duration
 import SwiftUI                  // @MainActor, ObservableObject
+import UIKit                    // UIImpactFeedbackGenerator
 import Infrastructure
 import DomainLogic
 import CoreModels
@@ -31,6 +32,10 @@ public final class DreamEntryViewModel: ObservableObject {
     @Published var shareText: String?           // Generated shareable text
     @Published var isExpandingAnalysis = false  // Loading state for expanded analysis
     @Published var expandedAnalysisMessage: String? // Loading message
+    @Published var isGeneratingImage = false     // Loading state for image generation
+    @Published var imageGenerationMessage: String? // Loading message for image
+    @Published var showingImageFullscreen = false // Fullscreen image viewer
+    @Published var hasContentPolicyViolation = false // Dream was flagged for content
 
     // ──────────────────────────────────────────────────────────────
     //  Private bits
@@ -44,6 +49,10 @@ public final class DreamEntryViewModel: ObservableObject {
     init(dream: Dream, store: DreamStore) {
         self.dream = dream
         self.store = store
+        // Check if dream already has content policy violation
+        if dream.imageStatus == "policy_violation" {
+            self.hasContentPolicyViolation = true
+        }
         Task { [weak self] in await self?.ensureSummary() }
     }
 
@@ -58,10 +67,23 @@ public final class DreamEntryViewModel: ObservableObject {
             print("DEBUG: refresh completed - analysis: \(updatedDream.analysis != nil ? "exists" : "nil")")
             print("DEBUG: Current dream analysis before update: \(self.dream.analysis != nil)")
             #endif
+            
+            // Check if analysis just became available (completion moment)
+            let wasAnalysisNil = self.dream.analysis == nil
+            let nowHasAnalysis = updatedDream.analysis != nil
+            
             self.dream = updatedDream
             #if DEBUG
             print("DEBUG: Current dream analysis after update: \(self.dream.analysis != nil)")
             #endif
+            
+            // Celebrate completion if analysis just appeared
+            if wasAnalysisNil && nowHasAnalysis {
+                #if DEBUG
+                print("DEBUG: Analysis just completed! Triggering celebration haptics.")
+                #endif
+                self.celebrateCompletion()
+            }
             
             // Explicitly trigger view update
             self.objectWillChange.send()
@@ -88,15 +110,23 @@ public final class DreamEntryViewModel: ObservableObject {
         self.errorMessage = nil
         self.errorAction = nil
         
-        // Set initial status message BEFORE entering busy state
-        self.statusMessage = "Initiating dream analysis..."
+        // Determine analysis type based on content size
+        let analysisType = self.dream.suggestedAnalysisType
+        let wordCount = self.dream.contentWordCount
+        
+        #if DEBUG
+        print("DEBUG: Dream content has \(wordCount) words, using \(analysisType.rawValue) analysis")
+        #endif
+        
+        // Set initial status message based on analysis type
+        self.statusMessage = analysisType.loadingMessage
         
         await runWithBusyAndErrors {
             #if DEBUG
-            print("DEBUG: calling requestAnalysis")
+            print("DEBUG: calling requestAnalysis with type: \(analysisType.rawValue)")
             #endif
             let requestStartTime = Date()
-            try await self.store.requestAnalysis(for: self.dream.id)
+            try await self.store.requestAnalysis(for: self.dream.id, type: analysisType)
             #if DEBUG
             print("DEBUG: requestAnalysis completed at \(Date()), starting polling...")
             #endif
@@ -105,22 +135,50 @@ public final class DreamEntryViewModel: ObservableObject {
             let maxAttempts = 30
             let pollInterval: Duration = .seconds(2)
             
-            // Bank of sophisticated interpretation messages
-            let interpretationMessages = [
-                "Analyzing symbolic patterns...",
-                "Examining archetypal themes...",
-                "Applying Jungian methodology...",
-                "Cross-referencing dream motifs...",
-                "Identifying unconscious elements...",
-                "Mapping emotional landscapes...",
-                "Decoding metaphorical content...",
-                "Evaluating shadow aspects...",
-                "Processing collective unconscious themes...",
-                "Synthesizing dream narrative..."
-            ]
+            // Context-aware interpretation messages based on analysis type
+            let interpretationMessages: [String]
+            switch analysisType {
+            case .micro:
+                interpretationMessages = [
+                    "Reflecting on key themes...",
+                    "Identifying core symbols...",
+                    "Capturing essence...",
+                    "Distilling meaning..."
+                ]
+            case .short:
+                interpretationMessages = [
+                    "Analyzing main themes...",
+                    "Examining dream symbols...",
+                    "Exploring emotional context...",
+                    "Connecting dream elements..."
+                ]
+            case .medium:
+                interpretationMessages = [
+                    "Analyzing symbolic patterns...",
+                    "Examining archetypal themes...",
+                    "Mapping emotional landscapes...",
+                    "Decoding metaphorical content...",
+                    "Identifying unconscious elements...",
+                    "Synthesizing dream narrative..."
+                ]
+            case .comprehensive:
+                interpretationMessages = [
+                    "Analyzing symbolic patterns...",
+                    "Examining archetypal themes...",
+                    "Applying Jungian methodology...",
+                    "Cross-referencing dream motifs...",
+                    "Identifying unconscious elements...",
+                    "Mapping emotional landscapes...",
+                    "Decoding metaphorical content...",
+                    "Evaluating shadow aspects...",
+                    "Processing collective unconscious themes...",
+                    "Synthesizing dream narrative..."
+                ]
+            }
             
-            // Randomly select 4 messages for the first 20 seconds
-            let selectedMessages = Array(interpretationMessages.shuffled().prefix(4))
+            // Randomly select messages for rotation (limit based on analysis type)
+            let messageCount = min(4, interpretationMessages.count)
+            let selectedMessages = Array(interpretationMessages.shuffled().prefix(messageCount))
             
             // Set initial status message immediately
             self.statusMessage = selectedMessages[0]
@@ -159,6 +217,10 @@ public final class DreamEntryViewModel: ObservableObject {
                     print("DEBUG: Analysis found on attempt \(attempt) after \(elapsedSeconds)s!")
                     #endif
                     self.statusMessage = nil  // Clear status message
+                    
+                    // Celebrate completion with haptic feedback
+                    self.celebrateCompletion()
+                    
                     break
                 }
             }
@@ -377,6 +439,107 @@ public final class DreamEntryViewModel: ObservableObject {
         self.isExpandingAnalysis = false
         self.expandedAnalysisMessage = nil
         messageTimer.invalidate()
+    }
+    
+    // ──────────────────────────────────────────────────────────────
+    //  Image Generation functionality
+    // ──────────────────────────────────────────────────────────────
+    func generateImage() async {
+        guard dream.imageUrl == nil else {
+            #if DEBUG
+            print("DEBUG: Image already exists for dream")
+            #endif
+            return
+        }
+        
+        // Check if we have content to generate from
+        guard dream.transcript != nil || dream.summary != nil else {
+            #if DEBUG
+            print("DEBUG: No transcript or summary available for image generation")
+            #endif
+            return
+        }
+        
+        let generatingMessages = [
+            "Creating dreamscape...",
+            "Painting your dreams...",
+            "Visualizing ethereal visions...",
+            "Weaving dream threads...",
+            "Crystallizing dream imagery...",
+            "Manifesting visual magic...",
+            "Rendering subconscious art...",
+            "Composing dream palette...",
+            "Bringing dreams to life...",
+            "Crafting mystical imagery..."
+        ]
+        
+        self.isGeneratingImage = true
+        self.imageGenerationMessage = generatingMessages.randomElement()
+        
+        // Create a timer to cycle through messages
+        let messageTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+            Task { @MainActor in
+                self.imageGenerationMessage = generatingMessages.randomElement()
+            }
+        }
+        
+        #if DEBUG
+        print("DEBUG: Requesting image generation for dream \(dream.id)")
+        #endif
+        
+        do {
+            // Call the API to generate image
+            let updatedDream = try await store.generateImage(for: dream.id)
+            
+            // Update our local dream with the image info
+            self.dream = updatedDream
+            
+            #if DEBUG
+            print("DEBUG: Image generated successfully: \(updatedDream.imageUrl ?? "nil")")
+            #endif
+        } catch {
+            #if DEBUG
+            print("DEBUG: Image generation failed: \(error)")
+            #endif
+            
+            // Check if it's a content policy violation
+            if let remoteError = error as? RemoteError,
+               case .contentPolicyViolation = remoteError {
+                self.hasContentPolicyViolation = true
+                // Update the local dream object to persist the status
+                self.dream.imageStatus = "policy_violation"
+            }
+        }
+        
+        // Clean up
+        self.isGeneratingImage = false
+        self.imageGenerationMessage = nil
+        messageTimer.invalidate()
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    //  Haptic Feedback for Dream Completion
+    // ──────────────────────────────────────────────────────────────
+    @MainActor
+    private func celebrateCompletion() {
+        // Only provide haptic feedback if device supports it and user hasn't disabled it
+        guard UIDevice.current.systemName == "iOS" else { return }
+        
+        // Heavy impact for accomplishment feeling
+        let heavyFeedback = UIImpactFeedbackGenerator(style: .heavy)
+        heavyFeedback.prepare() // Prepare for immediate response
+        heavyFeedback.impactOccurred()
+        
+        // Follow-up celebration pattern: two light taps
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            let lightFeedback = UIImpactFeedbackGenerator(style: .light)
+            lightFeedback.prepare()
+            lightFeedback.impactOccurred()
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                lightFeedback.impactOccurred()
+            }
+        }
     }
 
     // ──────────────────────────────────────────────────────────────
