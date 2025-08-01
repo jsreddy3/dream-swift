@@ -68,8 +68,16 @@ struct FirstDreamCelebrationView: View {
                     // Track dismissal
                     AnalyticsService.shared.track(.firstDreamCelebrationDismissed)
                     
-                    // Show notification setup
-                    showNotificationSetup = true
+                    // Check if notifications have already been set up
+                    if UserDefaults.standard.bool(forKey: "hasSetupFirstDreamNotifications") {
+                        // Already set up, just dismiss
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            isPresented = false
+                        }
+                    } else {
+                        // Show notification setup
+                        showNotificationSetup = true
+                    }
                 } label: {
                     Text("Continue Your Journey")
                         .font(DesignSystem.Typography.subheadline())

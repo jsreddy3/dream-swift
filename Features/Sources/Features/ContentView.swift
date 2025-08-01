@@ -69,6 +69,10 @@ public struct ContentView: View {
     @State private var dreamToOpen: Dream?    // navigation trigger
     @FocusState private var textEntryFocused: Bool
     @State private var showFirstDreamCelebration = false
+    
+    // First recording guidance
+    @StateObject private var guidanceManager = FirstRecordingGuidanceManager()
+    @State private var showRecordingGuidance = false
 
     public init(viewModel: CaptureViewModel, libraryViewModel: DreamLibraryViewModel) {
         _vm = State(initialValue: viewModel)
@@ -234,12 +238,32 @@ public struct ContentView: View {
                     vm.reset()
                     vm.state = .idle
                 }
+                
+                // Check if we should show first recording guidance
+                Task {
+                    await guidanceManager.checkShouldShowGuidance(dreamStore: vm.store)
+                }
+            }
+            .onChange(of: guidanceManager.shouldShowGuidance) { shouldShow in
+                if shouldShow {
+                    // Add a small delay to ensure smooth presentation
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        showRecordingGuidance = true
+                    }
+                }
             }
             // Observe state changes for first dream celebration
             .onChange(of: vm.state) { newState in
                 if newState == .saved && vm.shouldShowFirstDreamCelebration() {
                     showFirstDreamCelebration = true
                 }
+            }
+            .sheet(isPresented: $showRecordingGuidance) {
+                FirstRecordingGuidanceModal(isPresented: $showRecordingGuidance) {
+                    guidanceManager.markGuidanceAsSeen()
+                }
+                .presentationDetents([.height(280)])
+                .presentationDragIndicator(.hidden)
             }
             .fullScreenCover(isPresented: $showFirstDreamCelebration) {
                 // TODO: Get actual wake time from user preferences

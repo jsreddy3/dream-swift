@@ -133,7 +133,7 @@ public extension AnalyticsService {
         track(.onboardingPageViewed, properties: [
             "page_number": pageNumber,
             "page_name": pageName,
-            "total_pages": 7
+            "total_pages": 6
         ])
     }
     

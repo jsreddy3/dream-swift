@@ -149,7 +149,7 @@ public struct UserPreferences: Sendable, Codable {
         commonDreamThemes: [String] = [],
         primaryGoal: String? = nil,
         interests: [String] = [],
-        reminderEnabled: Bool = true,
+        reminderEnabled: Bool = false,
         reminderTime: String? = nil,
         reminderFrequency: String = "daily",
         reminderDays: [String] = [],

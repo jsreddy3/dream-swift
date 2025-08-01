@@ -27,6 +27,10 @@ public enum Config {
     /// Temporarily disabled to prevent startup hanging issues
     public static let forceOnboardingForTesting: Bool = true
     
+    /// Force recording guidance modal to show every time for testing
+    /// Set to false for production to show only for first-time users
+    public static let forceOnboardingDebug: Bool = true
+    
     // MARK: - Record Page Redesign Feature Flags
     
     /// Enable custom Voice Memos-style record button

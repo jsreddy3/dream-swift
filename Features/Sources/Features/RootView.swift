@@ -378,7 +378,7 @@ struct OnboardingPlaceholderView: View {
     @State private var hasTrackedStart = false
     @State private var journeyTracker = OnboardingJourneyTracker()
     
-    private let totalPages = 7
+    private let totalPages = 6
     
     private func getPageName(for page: Int) -> String {
         switch page {
@@ -386,9 +386,8 @@ struct OnboardingPlaceholderView: View {
         case 1: return "sleep_patterns"
         case 2: return "dream_patterns"
         case 3: return "goals_interests"
-        case 4: return "notifications"
-        case 5: return "archetype_reveal"
-        case 6: return "complete"
+        case 4: return "archetype_reveal"
+        case 5: return "complete"
         default: return "unknown"
         }
     }
@@ -513,7 +512,7 @@ struct OnboardingPlaceholderView: View {
                                         .font(DesignSystem.Typography.caption())
                                     Image(systemName: "checkmark")
                                         .font(.system(size: 16, weight: .medium))
-                                } else if currentPage == 4 && isSubmittingPreferences {
+                                } else if currentPage == 3 && isSubmittingPreferences {
                                     ProgressView()
                                         .progressViewStyle(CircularProgressViewStyle(tint: DesignSystem.Colors.textPrimary))
                                         .scaleEffect(0.8)
@@ -567,8 +566,8 @@ struct OnboardingPlaceholderView: View {
             journeyTracker.trackNavigation(action: "next", fromPage: currentPage + 1, toPage: currentPage + 2)
         }
         
-        // Special handling for screen 4 (Notifications) - submit preferences and get archetype
-        if currentPage == 4 && suggestedArchetype == nil {
+        // Special handling for screen 3 (Goals/Interests) - submit preferences and get archetype
+        if currentPage == 3 && suggestedArchetype == nil {
             Task {
                 await submitPreferences()
             }
@@ -652,7 +651,7 @@ struct OnboardingPlaceholderView: View {
                 }
                 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                    currentPage = 5
+                    currentPage = 4
                     withAnimation(.easeInOut(duration: 0.8)) {
                         contentOpacity = 1.0
                     }
@@ -706,7 +705,7 @@ struct OnboardingPlaceholderView: View {
                 }
                 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                    currentPage = 5
+                    currentPage = 4
                     withAnimation(.easeInOut(duration: 0.8)) {
                         contentOpacity = 1.0
                     }
@@ -832,9 +831,8 @@ struct OnboardingContent: View {
         case 1: return "sleep_patterns"
         case 2: return "dream_patterns"
         case 3: return "goals_interests"
-        case 4: return "notifications"
-        case 5: return "archetype_reveal"
-        case 6: return "complete"
+        case 4: return "archetype_reveal"
+        case 5: return "complete"
         default: return "unknown"
         }
     }
@@ -845,9 +843,8 @@ struct OnboardingContent: View {
         case 1: return .onboardingPage2SleepPatterns
         case 2: return .onboardingPage3DreamPatterns
         case 3: return .onboardingPage4Goals
-        case 4: return .onboardingPage5Notifications
-        case 5: return .onboardingPage6Archetype
-        case 6: return .onboardingPage7Complete
+        case 4: return .onboardingPage6Archetype
+        case 5: return .onboardingPage7Complete
         default: return .onboardingPageViewed
         }
     }
@@ -864,14 +861,12 @@ struct OnboardingContent: View {
             case 3:
                 GoalsInterestsScreen(preferences: $userPreferences)
             case 4:
-                NotificationScreen(preferences: $userPreferences)
-            case 5:
                 if let archetype = suggestedArchetype {
                     ArchetypeRevealScreen(archetype: archetype)
                 } else {
                     ArchetypeLoadingScreen()
                 }
-            case 6:
+            case 5:
                 OnboardingCompleteScreen(
                     auth: auth,
                     preferences: userPreferences,
@@ -1511,177 +1506,7 @@ struct GoalsInterestsScreen: View {
     }
 }
 
-struct NotificationScreen: View {
-    @Binding var preferences: UserPreferences
-    @State private var reminderEnabled = false  // Default to OFF so user must actively enable
-    @State private var selectedTime = "08:00"
-    @State private var selectedFrequency = "daily"
-    
-    private let timeOptions = ["07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00"]
-    private let frequencyOptions = [
-        ("daily", "Daily", "Every morning"),
-        ("weekly", "Weekly", "Once a week"),
-        ("custom", "Custom", "Specific days")
-    ]
-    
-    var body: some View {
-        VStack(spacing: 32) {
-            Image(systemName: "bell.badge")
-                .font(.system(size: 64))
-                .foregroundColor(DesignSystem.Colors.ember)
-            
-            VStack(spacing: 24) {
-                Text("Dream capture reminders")
-                    .font(DesignSystem.Typography.title2())
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                    .multilineTextAlignment(.center)
-                
-                Text("We can gently remind you to record your dreams when they're freshest in your memory.")
-                    .font(DesignSystem.Typography.body())
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(4)
-                
-                VStack(spacing: 20) {
-                    // Enable/disable toggle
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text("Enable reminders")
-                                .font(DesignSystem.Typography.subheadline())
-                                .foregroundColor(DesignSystem.Colors.textPrimary)
-                            Text("Get gentle nudges to capture your dreams")
-                                .font(DesignSystem.Typography.caption())
-                                .foregroundColor(DesignSystem.Colors.textTertiary)
-                        }
-                        
-                        Spacer()
-                        
-                        Toggle("", isOn: $reminderEnabled)
-                            .toggleStyle(SwitchToggleStyle(tint: DesignSystem.Colors.ember))
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(DesignSystem.Colors.ember.opacity(0.1))
-                    )
-                    
-                    if reminderEnabled {
-                        // Time picker
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Reminder time")
-                                .font(DesignSystem.Typography.subheadline())
-                                .foregroundColor(DesignSystem.Colors.textSecondary)
-                            
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    ForEach(timeOptions, id: \.self) { time in
-                                        Button(time) {
-                                            selectedTime = time
-                                            updatePreferences()
-                                        }
-                                        .foregroundColor(selectedTime == time ? DesignSystem.Colors.textPrimary : DesignSystem.Colors.textTertiary)
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 8)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 20)
-                                                .fill(selectedTime == time ? DesignSystem.Colors.ember : DesignSystem.Colors.ember.opacity(0.2))
-                                        )
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                                .padding(.horizontal, 16)
-                            }
-                            .allowsHitTesting(true)
-                        }
-                        
-                        // Frequency picker
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("How often?")
-                                .font(DesignSystem.Typography.subheadline())
-                                .foregroundColor(DesignSystem.Colors.textSecondary)
-                            
-                            VStack(spacing: 8) {
-                                ForEach(frequencyOptions, id: \.0) { freq in
-                                    Button {
-                                        selectedFrequency = freq.0
-                                        updatePreferences()
-                                    } label: {
-                                        HStack {
-                                            Text(freq.1)
-                                                .font(DesignSystem.Typography.subheadline())
-                                            
-                                            Spacer()
-                                            
-                                            Text(freq.2)
-                                                .font(DesignSystem.Typography.caption())
-                                                .foregroundColor(DesignSystem.Colors.textTertiary)
-                                            
-                                            if selectedFrequency == freq.0 {
-                                                Image(systemName: "checkmark.circle.fill")
-                                                    .foregroundColor(DesignSystem.Colors.ember)
-                                            }
-                                        }
-                                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                                        .padding()
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .fill(selectedFrequency == freq.0 ? DesignSystem.Colors.ember.opacity(0.2) : DesignSystem.Colors.ember.opacity(0.1))
-                                                .stroke(selectedFrequency == freq.0 ? DesignSystem.Colors.ember : Color.clear, lineWidth: 1)
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        .onAppear {
-            // Initialize time and frequency from preferences, but NOT the enabled state
-            // This ensures users must actively toggle ON to trigger permission request
-            if let reminderTime = preferences.reminderTime, reminderTime.count >= 5 {
-                selectedTime = String(reminderTime.prefix(5)) // Extract HH:MM from HH:MM:SS
-            }
-            selectedFrequency = preferences.reminderFrequency
-            
-            // Don't auto-enable based on preferences during onboarding
-            #if DEBUG
-            print("🔔 [NOTIFICATION] NotificationScreen appeared, toggle is: \(reminderEnabled ? "ON" : "OFF")")
-            #endif
-            updatePreferences()
-        }
-        .onChange(of: reminderEnabled) { oldValue, newValue in
-            #if DEBUG
-            print("🔔 [NOTIFICATION] Toggle changed from \(oldValue) to \(newValue)")
-            #endif
-            // Just update preferences - we'll request permission when completing onboarding
-            updatePreferences()
-        }
-    }
-    
-    private func updatePreferences() {
-        preferences = UserPreferences(
-            id: preferences.id,
-            userId: preferences.userId,
-            typicalBedtime: preferences.typicalBedtime,
-            typicalWakeTime: preferences.typicalWakeTime,
-            sleepQuality: preferences.sleepQuality,
-            dreamRecallFrequency: preferences.dreamRecallFrequency,
-            dreamVividness: preferences.dreamVividness,
-            commonDreamThemes: preferences.commonDreamThemes,
-            primaryGoal: preferences.primaryGoal,
-            interests: preferences.interests,
-            reminderEnabled: reminderEnabled,
-            reminderTime: reminderEnabled ? selectedTime + ":00" : nil,
-            reminderFrequency: selectedFrequency,
-            reminderDays: [],
-            initialArchetype: preferences.initialArchetype,
-            personalityTraits: preferences.personalityTraits,
-            onboardingCompleted: false
-        )
-    }
-}
+// NotificationScreen removed - notifications are now handled after first dream
 
 struct ArchetypeLoadingScreen: View {
     var body: some View {
@@ -1839,58 +1664,7 @@ struct OnboardingCompleteScreen: View {
                 )
                 
                 Task {
-                    // First request notification permission if reminders are enabled
-                    if preferences.reminderEnabled {
-                        #if DEBUG
-                        print("🔔 [COMPLETION] Requesting notification permission...")
-                        #endif
-                        
-                        do {
-                            let center = UNUserNotificationCenter.current()
-                            let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
-                            
-                            if granted {
-                                #if DEBUG
-                                print("✅ [COMPLETION] Permission granted, scheduling notifications...")
-                                #endif
-                                
-                                // Now schedule notifications
-                                if let reminderTime = preferences.reminderTime {
-                                    let scheduler = NotificationScheduler.shared
-                                    let timeString = String(reminderTime.prefix(5))
-                                    
-                                    try await scheduler.scheduleReminders(
-                                        time: timeString,
-                                        frequency: preferences.reminderFrequency,
-                                        archetype: archetype?.suggestedArchetype
-                                    )
-                                    #if DEBUG
-                                    print("✅ Scheduled \(preferences.reminderFrequency) reminders at \(timeString)")
-                                    
-                                    // Schedule a preview notification for 10 seconds from now
-                                    try await scheduler.scheduleTestNotification(
-                                        archetype: archetype?.suggestedArchetype
-                                    )
-                                    print("\n🔔 NOTIFICATION PREVIEW:")
-                                    print("   A preview of your daily reminder will appear in 10 seconds")
-                                    print("   This is exactly how your 8:00 AM reminder will look")
-                                    print("   📱 Press Cmd+Shift+H (home button) now to see it!\n")
-                                    
-                                    // Also print what notifications are scheduled
-                                    await scheduler.printScheduledNotifications()
-                                    #endif
-                                }
-                            } else {
-                                #if DEBUG
-                                print("❌ [COMPLETION] Permission denied")
-                                #endif
-                            }
-                        } catch {
-                            #if DEBUG
-                            print("⚠️ [COMPLETION] Failed to request permission or schedule: \(error)")
-                            #endif
-                        }
-                    }
+                    // Notification setup removed - will be handled after first dream
                     
                     // Complete onboarding regardless of notification status
                     auth.completeOnboarding()
