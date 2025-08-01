@@ -13,6 +13,7 @@ enum ErrorAction {
     case retry          // Show "Try Again" button
     case close          // Show "Close" button only
     case wait           // Show "OK" button (for timeout)
+    case rerecord       // Show "Record Again" button
 }
 
 @MainActor
@@ -41,6 +42,7 @@ public final class DreamEntryViewModel: ObservableObject {
     //  Private bits
     // ──────────────────────────────────────────────────────────────
     private let store: DreamStore
+    private let deleteDream: DeleteDream
     private let timeout: Duration = .seconds(10)
 
     // ──────────────────────────────────────────────────────────────
@@ -49,6 +51,7 @@ public final class DreamEntryViewModel: ObservableObject {
     init(dream: Dream, store: DreamStore) {
         self.dream = dream
         self.store = store
+        self.deleteDream = DeleteDream(store: store)
         // Check if dream already has content policy violation
         if dream.imageStatus == "policy_violation" {
             self.hasContentPolicyViolation = true
@@ -612,6 +615,20 @@ public final class DreamEntryViewModel: ObservableObject {
                     self.errorMessage = "Network error. Please try again."
                     self.errorAction = .retry
                 }
+            } else if let remoteError = error as? RemoteError,
+                      case .badStatus(let code, let body) = remoteError,
+                      code == 400 {
+                // Handle specific 400 errors
+                if body.contains("Failed to generate summary") && body.contains("transcript") {
+                    self.errorMessage = "Unable to process audio recording. The dream may have recording issues."
+                    self.errorAction = .rerecord
+                } else if body.contains("transcript") || body.contains("transcription") {
+                    self.errorMessage = "Audio processing failed. Please try recording your dream again."
+                    self.errorAction = .rerecord
+                } else {
+                    self.errorMessage = "Dream processing failed. Please try again."
+                    self.errorAction = .retry
+                }
             } else {
                 self.errorMessage = "Something went wrong. Please try again."
                 self.errorAction = .retry
@@ -636,6 +653,18 @@ public final class DreamEntryViewModel: ObservableObject {
             }
             try await group.next()        // whichever finishes first
             group.cancelAll()             // cancel the loser
+        }
+    }
+    
+    /// Deletes the current dream and prepares for re-recording
+    @MainActor
+    func deleteAndRerecord() async {
+        do {
+            try await deleteDream(dreamID: dream.id)
+            print("[DreamEntryVM] Successfully deleted dream \(dream.id) for re-recording")
+        } catch {
+            print("[DreamEntryVM] Failed to delete dream for re-recording: \(error)")
+            // Even if delete fails, we still want to dismiss so user can record again
         }
     }
 }

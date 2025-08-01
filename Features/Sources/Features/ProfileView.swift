@@ -122,27 +122,6 @@ public struct ProfileView: View {
                         FeedbackButtonView()
                             .padding(.horizontal, 24)
                             .padding(.bottom, 100) // Space for tab bar
-                        
-                        // Error state
-                        if viewModel.error != nil {
-                            VStack(spacing: 12) {
-                                Image(systemName: "wifi.slash")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(DesignSystem.Colors.textTertiary)
-                                
-                                Text("Couldn't load profile")
-                                    .font(DesignSystem.Typography.bodyMedium())
-                                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                                
-                                Text("Showing local data")
-                                    .font(DesignSystem.Typography.caption())
-                                    .foregroundColor(DesignSystem.Colors.textTertiary)
-                            }
-                            .padding()
-                            .glassCard()
-                            .padding(.horizontal, 24)
-                            .padding(.bottom, 20)
-                        }
                     }
                     .background(GeometryReader { geo in
                         Color.clear.preference(

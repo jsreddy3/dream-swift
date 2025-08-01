@@ -62,6 +62,7 @@ public struct ContentView: View {
     @State private var vm: CaptureViewModel
     @State private var libraryVM: DreamLibraryViewModel
     @EnvironmentObject private var auth: AuthBridge
+    @EnvironmentObject private var tabCoordinator: TabCoordinator
 
     @State private var mode: InputMode = .voice
     @State private var draft = ""
@@ -272,6 +273,13 @@ public struct ContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } // End ZStack
             .toolbarBackground(.hidden, for: .navigationBar)
+            .onChange(of: tabCoordinator.shouldStartRecording) { shouldStart in
+                if shouldStart {
+                    // Auto-trigger recording when switching from Record Again
+                    vm.startOrStop()
+                    tabCoordinator.resetRecordingTrigger()
+                }
+            }
         } // End NavigationStack
     }
 

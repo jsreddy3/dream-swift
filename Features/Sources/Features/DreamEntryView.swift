@@ -9,9 +9,12 @@ struct DreamEntryView: View {
     @StateObject private var vm: DreamEntryViewModel
     
     @Environment(\.dismiss) private var dismiss
+    
+    private let onDreamDeleted: (() -> Void)?
 
-    init(dream: Dream, store: DreamStore) {
+    init(dream: Dream, store: DreamStore, onDreamDeleted: (() -> Void)? = nil) {
         _vm = StateObject(wrappedValue: DreamEntryViewModel(dream: dream, store: store))
+        self.onDreamDeleted = onDreamDeleted
     }
 
     var body: some View {
@@ -35,6 +38,15 @@ struct DreamEntryView: View {
                         case .retry:
                             Button("Try Again") {
                                 Task { await vm.interpret() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                        case .rerecord:
+                            Button("Record Again") {
+                                Task {
+                                    await vm.deleteAndRerecord()
+                                    onDreamDeleted?()
+                                    dismiss()
+                                }
                             }
                             .buttonStyle(.borderedProminent)
                         case .wait:

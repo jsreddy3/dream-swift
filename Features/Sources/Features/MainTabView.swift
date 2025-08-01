@@ -11,6 +11,7 @@ public struct MainTabView: View {
     @State private var captureVM: CaptureViewModel
     @State private var libraryVM: DreamLibraryViewModel
     @EnvironmentObject private var auth: AuthBridge
+    @StateObject private var tabCoordinator = TabCoordinator()
     
     private let store: DreamStore
     private let profileStore: RemoteProfileStore
@@ -28,7 +29,7 @@ public struct MainTabView: View {
     }
     
     public var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: $tabCoordinator.selectedTab) {
             // Profile Tab
             ProfileView(profileStore: profileStore, dreamStore: store)
                 .tabItem {
@@ -38,6 +39,7 @@ public struct MainTabView: View {
             
             // Record Tab
             ContentView(viewModel: captureVM, libraryViewModel: libraryVM)
+                .environmentObject(tabCoordinator)
                 .tabItem {
                     Label("Record", systemImage: "waveform.circle.fill")
                 }
@@ -46,6 +48,7 @@ public struct MainTabView: View {
             // Library Tab
             NavigationStack {
                 DreamLibraryView(viewModel: libraryVM)
+                    .environmentObject(tabCoordinator)
                     .onAppear {
                         // Refresh when tab becomes visible and we've saved a dream
                         if captureVM.state == .saved {
@@ -60,7 +63,7 @@ public struct MainTabView: View {
         }
         .background(Color.clear)
         .tint(DesignSystem.Colors.ember)
-        .onChange(of: selectedTab) { newTab in
+        .onChange(of: tabCoordinator.selectedTab) { newTab in
             // Provide subtle haptic feedback for tab switches
             // Only triggers on actual tab changes, not repeated taps
             let selectionFeedback = UISelectionFeedbackGenerator()

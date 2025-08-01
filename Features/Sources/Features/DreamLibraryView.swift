@@ -15,6 +15,7 @@ import DomainLogic
 struct DreamLibraryView: View {
     @StateObject private var vm: DreamLibraryViewModel
     private let shouldRefresh: Bool
+    @EnvironmentObject private var tabCoordinator: TabCoordinator
 
     init(viewModel: DreamLibraryViewModel, shouldRefresh: Bool = false) {
         _vm = StateObject(wrappedValue: viewModel)
@@ -40,7 +41,11 @@ struct DreamLibraryView: View {
         .navigationTitle("Dream Library")
         .navigationBarTitleDisplayMode(.large)
         .navigationDestination(for: Dream.self) { dream in
-            DreamEntryView(dream: dream, store: vm.store)
+            DreamEntryView(dream: dream, store: vm.store) {
+                // Refresh library and switch to Record tab to start recording
+                Task { await vm.refresh() }
+                tabCoordinator.switchToRecordAndStart()
+            }
         }
         .task { 
             // Refresh if we have no dreams (first load) or explicitly requested
