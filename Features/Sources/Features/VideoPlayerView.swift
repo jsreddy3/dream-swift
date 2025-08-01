@@ -9,7 +9,7 @@ struct VideoPlayerView: View {
     @State private var player: AVPlayer
     @State private var cancellables = Set<AnyCancellable>()
     @State private var playerStatus: String = "Initializing..."
-    @State private var showDebugInfo = true
+    @State private var showDebugInfo = false
     
     init(url: URL, isPresented: Binding<Bool>) {
         self.url = url

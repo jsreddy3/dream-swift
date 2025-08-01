@@ -398,23 +398,8 @@ struct OnboardingPlaceholderView: View {
             DreamBackground()
             
             VStack {
-                // Skip button + Debug info
+                // Skip button
                 HStack {
-                    // Debug info (remove for production)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("🔍 DEBUG")
-                            .font(.caption)
-                            .foregroundColor(.yellow)
-                        Text("Flag: \(Config.forceOnboardingForTesting ? "ON" : "OFF")")
-                            .font(.caption2)
-                            .foregroundColor(.yellow)
-                        Text("Page: \(currentPage + 1)/\(totalPages)")
-                            .font(.caption2)
-                            .foregroundColor(.yellow)
-                    }
-                    .padding(.leading, 24)
-                    .padding(.top, 20)
-                    
                     Spacer()
                     
                     Button("Skip") {

@@ -10,7 +10,7 @@ public enum Config {
 //    public static let apiBase = URL(string: "https://backend-dream.fly.dev")!
 //    public static let apiBase = URL(string: "http://192.168.0.16:8000")!
     // public static let apiBase = URL(string: "http://10.80.82.109:8000")!
-    public static let apiBase = URL(string: "http://10.80.82.109:8000")!
+    public static let apiBase = URL(string: "https://backend-dream.fly.dev")!
     
     /// Google OAuth client ID for the iOS bundle
     public static let googleClientID = "291516817801-f96frg6p6qujejfml5b6i7l7bbk4f8ah.apps.googleusercontent.com"
@@ -25,11 +25,11 @@ public enum Config {
     /// Force onboarding to show for all users (for testing purposes)
     /// Set to false for production to respect user completion state
     /// Temporarily disabled to prevent startup hanging issues
-    public static let forceOnboardingForTesting: Bool = true
+    public static let forceOnboardingForTesting: Bool = false
     
     /// Force recording guidance modal to show every time for testing
     /// Set to false for production to show only for first-time users
-    public static let forceOnboardingDebug: Bool = true
+    public static let forceOnboardingDebug: Bool = false
     
     // MARK: - Record Page Redesign Feature Flags
     
