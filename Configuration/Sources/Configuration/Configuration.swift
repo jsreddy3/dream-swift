@@ -6,10 +6,10 @@ public enum Config {
 //    public static let apiBase = URL(string: "http://192.168.1.119:8000")!
     // public static let apiBase = URL(string: "https://backend-dream.fly.dev")!
 //     public static let apiBase = URL(string: "http://172.20.10.5:8000")!
-    public static let apiBase = URL(string: "http://192.168.0.41:8000")!
+    // public static let apiBase = URL(string: "http://192.168.0.41:8000")!
 //    public static let apiBase = URL(string: "https://backend-dream.fly.dev")!
 //    public static let apiBase = URL(string: "http://192.168.0.16:8000")!
-    // public static let apiBase = URL(string: "http://10.80.82.109:8000")!
+     public static let apiBase = URL(string: "http://10.80.82.109:8000")!
     // public static let apiBase = URL(string: "https://backend-dream.fly.dev")!
     
     /// Google OAuth client ID for the iOS bundle

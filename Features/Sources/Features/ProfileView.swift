@@ -24,7 +24,7 @@ public struct ProfileView: View {
             // Background - use standard app background
             DreamBackground()
             
-            if viewModel.isLoading && viewModel.userProfile == nil {
+            if viewModel.isLoading && viewModel.currentArchetype == nil {
                 // Initial loading state
                 VStack(spacing: 20) {
                     ProgressView()
@@ -36,9 +36,15 @@ public struct ProfileView: View {
                         .foregroundColor(DesignSystem.Colors.textSecondary)
                 }
             } else {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        // Cached data indicator
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            // Top anchor for scroll reset
+                            Color.clear
+                                .frame(height: 1)
+                                .id("top")
+                            
+                            // Cached data indicator
                         if viewModel.isShowingCachedData {
                             HStack(spacing: 8) {
                                 Image(systemName: "clock.arrow.circlepath")
@@ -89,19 +95,69 @@ public struct ProfileView: View {
                         }
                         
                         // Hero Section - Dream Keeper
-                        DreamArchetypeView(
-                            archetype: viewModel.currentArchetype,
-                            totalDreams: viewModel.statistics.totalDreams,
-                            dreamDates: viewModel.dreamDates
-                        )
-                            .padding(.top, viewModel.isCalculating ? 40 : 70)
-                            .padding(.bottom, 30)
+                        Group {
+                            if let archetype = viewModel.currentArchetype {
+                                DreamArchetypeView(
+                                    archetype: archetype,
+                                    totalDreams: viewModel.statistics.totalDreams,
+                                    dreamDates: viewModel.dreamDates
+                                )
+                            } else {
+                                // Placeholder to maintain layout stability
+                                VStack(spacing: 20) {
+                                    // Placeholder for avatar
+                                    Circle()
+                                        .fill(DesignSystem.Colors.cardBackground)
+                                        .frame(width: 120, height: 120)
+                                        .overlay(
+                                            ProgressView()
+                                                .scaleEffect(0.8)
+                                                .tint(DesignSystem.Colors.ember)
+                                        )
+                                    
+                                    // Placeholder for title
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(DesignSystem.Colors.cardBackground)
+                                        .frame(width: 200, height: 24)
+                                        .redacted(reason: .placeholder)
+                                }
+                            }
+                        }
+                        .padding(.top, viewModel.isCalculating ? 40 : 70)
+                        .padding(.bottom, 30)
                         
                         // Today's Dream Wisdom
-                        DreamInsightsCard(
-                            message: viewModel.todayMessage,
-                            recentSymbols: viewModel.recentSymbols
-                        )
+                        Group {
+                            if let message = viewModel.todayMessage {
+                                DreamInsightsCard(
+                                    message: message,
+                                    recentSymbols: viewModel.recentSymbols
+                                )
+                            } else {
+                                // Placeholder card to maintain layout
+                                VStack(alignment: .leading, spacing: 16) {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(DesignSystem.Colors.cardBackground)
+                                        .frame(height: 20)
+                                        .redacted(reason: .placeholder)
+                                    
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(DesignSystem.Colors.cardBackground)
+                                        .frame(height: 16)
+                                        .redacted(reason: .placeholder)
+                                    
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(DesignSystem.Colors.cardBackground)
+                                        .frame(width: 150, height: 16)
+                                        .redacted(reason: .placeholder)
+                                }
+                                .padding(24)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(DesignSystem.Colors.cardBackground)
+                                )
+                            }
+                        }
                         .padding(.horizontal, 24)
                         .padding(.bottom, 30)
                         
@@ -129,10 +185,17 @@ public struct ProfileView: View {
                             value: geo.frame(in: .named("scroll")).origin.y
                         )
                     })
-                }
-                .coordinateSpace(name: "scroll")
-                .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
-                    scrollOffset = value
+                    }
+                    .coordinateSpace(name: "scroll")
+                    .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+                        scrollOffset = value
+                    }
+                    .onChange(of: viewModel.currentArchetype) { _ in
+                        // Reset scroll position when archetype loads
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            proxy.scrollTo("top", anchor: .top)
+                        }
+                    }
                 }
             }
         }

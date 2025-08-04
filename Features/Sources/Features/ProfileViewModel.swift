@@ -8,8 +8,8 @@ import DomainLogic
 @MainActor
 public class ProfileViewModel: ObservableObject {
     @Published var userProfile: UserProfile?
-    @Published var currentArchetype: DreamArchetype = .analytical
-    @Published var todayMessage: DreamMessage = DreamMessage(message: "", inspiration: "")
+    @Published var currentArchetype: DreamArchetype?
+    @Published var todayMessage: DreamMessage?
     @Published var recentSymbols: [String] = []
     @Published var emotionalData: [EmotionData] = []
     @Published var statistics: DreamStatistics = .empty
@@ -108,10 +108,12 @@ public class ProfileViewModel: ObservableObject {
         // Map backend archetype to frontend enum
         if let archetypeString = profile.archetype {
             self.currentArchetype = mapArchetype(from: archetypeString)
+            // Update today's message only after archetype is set
+            self.todayMessage = generateTodayMessage()
+        } else {
+            self.currentArchetype = nil
+            self.todayMessage = nil
         }
-        
-        // Update today's message
-        self.todayMessage = generateTodayMessage()
         
         // Map symbols
         self.recentSymbols = profile.recentSymbols
@@ -207,7 +209,7 @@ public class ProfileViewModel: ObservableObject {
             
             await MainActor.run {
                 self.currentArchetype = calculateArchetype(from: dreams)
-                self.todayMessage = generateTodayMessage()
+                self.todayMessage = self.currentArchetype.map { _ in generateTodayMessage() }
                 self.recentSymbols = ["🌟", "🌊", "🦋"] // Default symbols
                 self.emotionalData = generateDefaultEmotionalData()
                 self.statistics = calculateStatistics(from: dreams)
@@ -254,7 +256,10 @@ public class ProfileViewModel: ObservableObject {
     // MARK: - Message Generation
     
     private func generateTodayMessage() -> DreamMessage {
-        let messages = currentArchetype.messages
+        guard let archetype = currentArchetype else {
+            return DreamMessage(message: "", inspiration: "")
+        }
+        let messages = archetype.messages
         guard !messages.isEmpty else {
             return DreamMessage(message: "", inspiration: "")
         }
@@ -342,12 +347,12 @@ public class ProfileViewModel: ObservableObject {
 
 // MARK: - Data Models
 
-public struct DreamMessage: Sendable {
+public struct DreamMessage: Sendable, Equatable {
     let message: String
     let inspiration: String
 }
 
-public struct DreamArchetype: Sendable {
+public struct DreamArchetype: Sendable, Equatable {
     let id: String
     let name: String
     let symbol: String
