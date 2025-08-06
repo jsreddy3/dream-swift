@@ -100,8 +100,13 @@ public struct ProfileView: View {
                                 DreamArchetypeView(
                                     archetype: archetype,
                                     totalDreams: viewModel.statistics.totalDreams,
-                                    dreamDates: viewModel.dreamDates
+                                    dreamDates: viewModel.dreamDates,
+                                    userName: viewModel.userProfile?.name
                                 )
+                                .onAppear {
+                                    print("DEBUG VIEW1: viewModel.userProfile exists: \(viewModel.userProfile != nil)")
+                                    print("DEBUG VIEW2: Passing userName: '\(viewModel.userProfile?.name ?? "nil")'")
+                                }
                             } else {
                                 // Placeholder to maintain layout stability
                                 VStack(spacing: 20) {
@@ -212,6 +217,7 @@ struct DreamArchetypeView: View {
     let archetype: DreamArchetype
     let totalDreams: Int
     let dreamDates: [Date]
+    let userName: String?
     @State private var particleSystem = ParticleSystem()
     
     var body: some View {
@@ -236,6 +242,24 @@ struct DreamArchetypeView: View {
                             .font(.system(size: 50))
                     )
                     .shadow(color: DesignSystem.Colors.ember.opacity(0.6), radius: 20)
+            }
+            
+            // User greeting (if name available)
+            if let userName = userName {
+                Text("Hello, \(userName)")
+                    .font(DesignSystem.Typography.title3())
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .padding(.bottom, -10)
+                    .onAppear {
+                        print("DEBUG: Displaying user name: '\(userName)'")
+                    }
+            } else {
+                Text("DEBUG: No user name available")
+                    .font(DesignSystem.Typography.caption())
+                    .foregroundColor(.red)
+                    .onAppear {
+                        print("DEBUG: User name is nil")
+                    }
             }
             
             // Archetype Name

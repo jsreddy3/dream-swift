@@ -18,10 +18,32 @@ public actor RemoteProfileStore: Sendable {
         self.baseURL = baseURL
         self.auth = auth
         
-        // Configure decoder for snake_case from backend
+        // Configure decoder - using explicit CodingKeys instead of snake_case conversion
         self.decoder = JSONDecoder()
-        self.decoder.keyDecodingStrategy = .convertFromSnakeCase
-        self.decoder.dateDecodingStrategy = .iso8601
+        
+        // Custom date decoding for mixed date formats
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        
+        let iso8601Formatter = DateFormatter()
+        iso8601Formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+        iso8601Formatter.timeZone = TimeZone(identifier: "UTC")
+        
+        self.decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let dateString = try container.decode(String.self)
+            
+            // Try ISO8601 with microseconds first (for lastCalculatedAt)
+            if let date = iso8601Formatter.date(from: dateString) {
+                return date
+            }
+            // Try simple date format (for lastDreamDate)
+            if let date = dateFormatter.date(from: dateString) {
+                return date
+            }
+            
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date from: \(dateString)")
+        }
         
         self.encoder = JSONEncoder()
         self.encoder.keyEncodingStrategy = .convertToSnakeCase
@@ -32,7 +54,15 @@ public actor RemoteProfileStore: Sendable {
     /// Fetch the current user's profile
     public func profile() async throws -> UserProfile {
         let (data, _) = try await request("users/me/profile", method: "GET")
-        return try decoder.decode(UserProfile.self, from: data)
+        print("DEBUG API: Raw response: \(String(data: data, encoding: .utf8) ?? "nil")")
+        do {
+            let profile = try decoder.decode(UserProfile.self, from: data)
+            print("DEBUG API: Decode SUCCESS - name: '\(profile.name ?? "nil")'")
+            return profile
+        } catch {
+            print("DEBUG API: Decode FAILED - error: \(error)")
+            throw error
+        }
     }
     
     /// Trigger profile calculation

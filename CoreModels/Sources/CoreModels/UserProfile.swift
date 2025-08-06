@@ -3,6 +3,7 @@ import Foundation
 // MARK: - User Profile Models
 
 public struct UserProfile: Sendable, Codable {
+    public let name: String?
     public let archetype: String?
     public let archetypeConfidence: Double?
     public let statistics: ProfileStatistics
@@ -12,7 +13,20 @@ public struct UserProfile: Sendable, Codable {
     public let lastCalculatedAt: Date?
     public let calculationStatus: String
     
+    enum CodingKeys: String, CodingKey {
+        case name
+        case archetype
+        case archetypeConfidence = "archetype_confidence"
+        case statistics
+        case emotionalMetrics = "emotional_metrics"
+        case dreamThemes = "dream_themes"
+        case recentSymbols = "recent_symbols"
+        case lastCalculatedAt = "last_calculated_at"
+        case calculationStatus = "calculation_status"
+    }
+    
     public init(
+        name: String? = nil,
         archetype: String? = nil,
         archetypeConfidence: Double? = nil,
         statistics: ProfileStatistics,
@@ -22,6 +36,7 @@ public struct UserProfile: Sendable, Codable {
         lastCalculatedAt: Date? = nil,
         calculationStatus: String = "pending"
     ) {
+        self.name = name
         self.archetype = archetype
         self.archetypeConfidence = archetypeConfidence
         self.statistics = statistics

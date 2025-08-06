@@ -34,9 +34,13 @@ public class ProfileViewModel: ObservableObject {
     }
     
     public func loadProfile(forceCalculate: Bool = false) async {
+        // Skip cache for now to always get fresh data with name field
+        // TODO: Re-enable caching after cache invalidation or schema migration
+        /*
         // First, try to load from cache for instant display
         if let cached = try? await cache.load() {
             self.userProfile = cached.profile
+            print("DEBUG: Loaded cached profile - name: '\(cached.profile.name ?? "nil")'")
             updateUIFromProfile(cached.profile)
             self.isShowingCachedData = true
             self.cacheAge = cached.ageDescription
@@ -48,6 +52,7 @@ public class ProfileViewModel: ObservableObject {
                 return
             }
         }
+        */
         
         // Now fetch from network
         isLoading = true
@@ -62,12 +67,18 @@ public class ProfileViewModel: ObservableObject {
             }
             
             // Fetch profile
-            let profile = try await profileStore.profile()
-            
-            // Only update UI if data has changed
-            if profile.isDifferentFrom(self.userProfile) {
+            let profile: UserProfile
+            do {
+                profile = try await profileStore.profile()
+                print("DEBUG VM1: Received from API - name: '\(profile.name ?? "nil")'")
+                
+                // Always update UI for debugging
                 self.userProfile = profile
+                print("DEBUG VM2: Set self.userProfile - name: '\(self.userProfile?.name ?? "nil")'")
                 updateUIFromProfile(profile)
+            } catch {
+                print("DEBUG VM: Profile fetch FAILED - error: \(error)")
+                throw error
             }
             
             // Save to cache
