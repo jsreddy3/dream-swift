@@ -117,6 +117,9 @@ public final class DreamEntryViewModel: ObservableObject {
         // Set initial status message based on analysis type
         self.statusMessage = analysisType.loadingMessage
         
+        // Optimistically update dream status to show loading UI immediately
+        self.dream.analysisStatus = "processing"
+        
         await runWithBusyAndErrors {
             #if DEBUG
             print("DEBUG: calling requestAnalysis with type: \(analysisType.rawValue)")
@@ -344,6 +347,8 @@ public final class DreamEntryViewModel: ObservableObject {
             return
         }
         
+        // Optimistically update status to show loading UI immediately
+        self.dream.expandedAnalysisStatus = "processing"
 
         do {
             #if DEBUG
@@ -404,6 +409,9 @@ public final class DreamEntryViewModel: ObservableObject {
                         }
                     }
                 }
+            } else {
+                // Reset status on non-timeout errors
+                self.dream.expandedAnalysisStatus = "failed"
             }
         }
     }
@@ -427,6 +435,8 @@ public final class DreamEntryViewModel: ObservableObject {
             return
         }
         
+        // Optimistically update status to show loading UI immediately
+        self.dream.imageStatus = "processing"
         
         #if DEBUG
         print("DEBUG: Requesting image generation for dream \(dream.id)")
@@ -447,9 +457,12 @@ public final class DreamEntryViewModel: ObservableObject {
             print("DEBUG: Image generation failed: \(error)")
             #endif
             
-            // Check if it's a content policy violation
-            // Content policy violations are now handled by backend status
-            // The UI will show the appropriate message based on dream.imageStatus
+            // Reset status on error so the visualize button shows again
+            // (unless it was a content policy violation, which the backend will set appropriately)
+            if !(error is RemoteError) || 
+               !((error as? RemoteError)?.localizedDescription.contains("content policy") == true) {
+                self.dream.imageStatus = "failed"
+            }
         }
     }
 
@@ -566,6 +579,9 @@ public final class DreamEntryViewModel: ObservableObject {
                 self.errorMessage = "Something went wrong. Please try again."
                 self.errorAction = .retry
             }
+            
+            // Reset analysisStatus on error so the interpret button shows again
+            self.dream.analysisStatus = "failed"
             
             #if DEBUG
             print("DEBUG: Error message shown to user: \(self.errorMessage ?? "nil"), action: \(self.errorAction ?? .close)")
