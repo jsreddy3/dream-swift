@@ -366,6 +366,10 @@ struct DreamEntryView: View {
                 vm.generateShareText()
             }
         }
+        .onAppear {
+            // Refresh dream state from backend when view appears
+            Task { await vm.refresh() }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 if let shareText = vm.shareText {
