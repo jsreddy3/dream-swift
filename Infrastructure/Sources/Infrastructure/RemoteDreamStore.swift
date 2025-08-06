@@ -96,6 +96,12 @@ public actor RemoteDreamStore: DreamStore, Sendable {
                 return date
             }
             
+            // Try with timezone offset + Z (backend format: 2025-08-06T01:41:01+00:00Z)
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssxxxxx'Z'"
+            if let date = formatter.date(from: dateString) {
+                return date
+            }
+            
             // Try without Z
             formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
             if let date = formatter.date(from: dateString) {
@@ -208,6 +214,9 @@ public actor RemoteDreamStore: DreamStore, Sendable {
     }
 
     public func markCompleted(_ dreamID: UUID) async throws -> Dream {
+        // SURGICAL: Track who's calling finish
+        print("🔥 FINISH API: \(dreamID.uuidString.prefix(8)) from \(Thread.callStackSymbols[1].components(separatedBy: " ").last ?? "unknown")")
+        
         let req = try await makeRequest(
             path: "dreams/\(dreamID.uuidString.lowercased())/finish",
             method: "POST"

@@ -51,6 +51,11 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
     public var imageGeneratedAt: Date?
     public var imageStatus: String?
     
+    // Work-in-progress status fields
+    public var summaryStatus: String?           // "pending" | "completed" | "failed"
+    public var analysisStatus: String?          // "pending" | "completed" | "failed"
+    public var expandedAnalysisStatus: String?  // "pending" | "completed" | "failed"
+    
     enum CodingKeys: String, CodingKey {
         case id, created_at, title, transcript, segments, state
         case videoS3Key = "video_s3_key"
@@ -62,6 +67,9 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
         case imagePrompt = "image_prompt"
         case imageGeneratedAt = "image_generated_at"
         case imageStatus = "image_status"
+        case summaryStatus = "summary_status"
+        case analysisStatus = "analysis_status"
+        case expandedAnalysisStatus = "expanded_analysis_status"
     }
 
     public init(
@@ -79,7 +87,10 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
         imageUrl: String? = nil,
         imagePrompt: String? = nil,
         imageGeneratedAt: Date? = nil,
-        imageStatus: String? = nil
+        imageStatus: String? = nil,
+        summaryStatus: String? = nil,
+        analysisStatus: String? = nil,
+        expandedAnalysisStatus: String? = nil
     ) {
         self.id = id
         self.created_at = created_at
@@ -96,6 +107,9 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
         self.imagePrompt = imagePrompt
         self.imageGeneratedAt = imageGeneratedAt
         self.imageStatus = imageStatus
+        self.summaryStatus = summaryStatus
+        self.analysisStatus = analysisStatus
+        self.expandedAnalysisStatus = expandedAnalysisStatus
     }
 
     // MARK: Codable
@@ -109,7 +123,8 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
         }
         title     = try c.decode(String.self, forKey: .title)
         transcript = try c.decodeIfPresent(String.self, forKey: .transcript)
-        segments   = try c.decodeIfPresent([Segment].self, forKey: .segments) ?? []
+        // Handle malformed segments gracefully - default to empty if decode fails
+        segments = (try? c.decodeIfPresent([Segment].self, forKey: .segments)) ?? []
         state      = try c.decodeIfPresent(DreamState.self, forKey: .state) ?? .draft
         videoS3Key = try c.decodeIfPresent(String.self, forKey: .videoS3Key)
         summary    = try c.decodeIfPresent(String.self, forKey: .summary)
@@ -120,6 +135,9 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
         imagePrompt = try c.decodeIfPresent(String.self, forKey: .imagePrompt)
         imageGeneratedAt = try c.decodeIfPresent(Date.self, forKey: .imageGeneratedAt)
         imageStatus = try c.decodeIfPresent(String.self, forKey: .imageStatus)
+        summaryStatus = try c.decodeIfPresent(String.self, forKey: .summaryStatus)
+        analysisStatus = try c.decodeIfPresent(String.self, forKey: .analysisStatus)
+        expandedAnalysisStatus = try c.decodeIfPresent(String.self, forKey: .expandedAnalysisStatus)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -139,6 +157,9 @@ public struct Dream: Identifiable, Equatable, Sendable, Codable {
         try c.encodeIfPresent(imagePrompt, forKey: .imagePrompt)
         try c.encodeIfPresent(imageGeneratedAt, forKey: .imageGeneratedAt)
         try c.encodeIfPresent(imageStatus, forKey: .imageStatus)
+        try c.encodeIfPresent(summaryStatus, forKey: .summaryStatus)
+        try c.encodeIfPresent(analysisStatus, forKey: .analysisStatus)
+        try c.encodeIfPresent(expandedAnalysisStatus, forKey: .expandedAnalysisStatus)
     }
     
     // MARK: - Content Analysis Utilities

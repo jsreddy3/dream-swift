@@ -28,15 +28,10 @@ public final class DreamEntryViewModel: ObservableObject {
     @Published var isEditMode    = false
     @Published var editedTitle: String = ""
     @Published var editedSummary: String = ""
-    @Published var statusMessage: String?       // For progress updates
+    @Published var statusMessage: String?       // For progress updates during busy state
     @Published var errorAction: ErrorAction?    // What action user can take
     @Published var shareText: String?           // Generated shareable text
-    @Published var isExpandingAnalysis = false  // Loading state for expanded analysis
-    @Published var expandedAnalysisMessage: String? // Loading message
-    @Published var isGeneratingImage = false     // Loading state for image generation
-    @Published var imageGenerationMessage: String? // Loading message for image
     @Published var showingImageFullscreen = false // Fullscreen image viewer
-    @Published var hasContentPolicyViolation = false // Dream was flagged for content
 
     // ──────────────────────────────────────────────────────────────
     //  Private bits
@@ -52,10 +47,6 @@ public final class DreamEntryViewModel: ObservableObject {
         self.dream = dream
         self.store = store
         self.deleteDream = DeleteDream(store: store)
-        // Check if dream already has content policy violation
-        if dream.imageStatus == "policy_violation" {
-            self.hasContentPolicyViolation = true
-        }
         Task { [weak self] in await self?.ensureSummary() }
     }
 
@@ -64,6 +55,9 @@ public final class DreamEntryViewModel: ObservableObject {
     // ──────────────────────────────────────────────────────────────
     @MainActor
     func refresh() async {
+        #if DEBUG
+        print("DEBUG: refresh() called for dream \(self.dream.id)")
+        #endif
         do   { 
             let updatedDream = try await self.store.getDream(self.dream.id)
             #if DEBUG
@@ -75,6 +69,8 @@ public final class DreamEntryViewModel: ObservableObject {
             let wasAnalysisNil = self.dream.analysis == nil
             let nowHasAnalysis = updatedDream.analysis != nil
             
+            // Force UI update by triggering objectWillChange BEFORE assignment
+            self.objectWillChange.send()
             self.dream = updatedDream
             #if DEBUG
             print("DEBUG: Current dream analysis after update: \(self.dream.analysis != nil)")
@@ -87,9 +83,6 @@ public final class DreamEntryViewModel: ObservableObject {
                 #endif
                 self.celebrateCompletion()
             }
-            
-            // Explicitly trigger view update
-            self.objectWillChange.send()
         }
         catch { 
             NSLog("refresh failed: \(error)")
@@ -351,30 +344,6 @@ public final class DreamEntryViewModel: ObservableObject {
             return
         }
         
-        let expandingMessages = [
-            "Expanding analysis...",
-            "Exploring deeper meanings...",
-            "Uncovering hidden symbols...",
-            "Diving into psychological themes...",
-            "Examining emotional connections...",
-            "Analyzing symbolic patterns...",
-            "Connecting dream elements...",
-            "Revealing deeper insights...",
-            "Exploring personal significance...",
-            "Unraveling dream layers..."
-        ]
-        
-        self.isExpandingAnalysis = true
-        self.expandedAnalysisMessage = expandingMessages.randomElement()
-        
-        // Rotate loading messages every 3 seconds
-        let messageTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
-            DispatchQueue.main.async {
-                if self.isExpandingAnalysis {
-                    self.expandedAnalysisMessage = expandingMessages.randomElement()
-                }
-            }
-        }
 
         do {
             #if DEBUG
@@ -437,11 +406,6 @@ public final class DreamEntryViewModel: ObservableObject {
                 }
             }
         }
-        
-        // Clean up after async operation completes
-        self.isExpandingAnalysis = false
-        self.expandedAnalysisMessage = nil
-        messageTimer.invalidate()
     }
     
     // ──────────────────────────────────────────────────────────────
@@ -463,28 +427,6 @@ public final class DreamEntryViewModel: ObservableObject {
             return
         }
         
-        let generatingMessages = [
-            "Creating dreamscape...",
-            "Painting your dreams...",
-            "Visualizing ethereal visions...",
-            "Weaving dream threads...",
-            "Crystallizing dream imagery...",
-            "Manifesting visual magic...",
-            "Rendering subconscious art...",
-            "Composing dream palette...",
-            "Bringing dreams to life...",
-            "Crafting mystical imagery..."
-        ]
-        
-        self.isGeneratingImage = true
-        self.imageGenerationMessage = generatingMessages.randomElement()
-        
-        // Create a timer to cycle through messages
-        let messageTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
-            Task { @MainActor in
-                self.imageGenerationMessage = generatingMessages.randomElement()
-            }
-        }
         
         #if DEBUG
         print("DEBUG: Requesting image generation for dream \(dream.id)")
@@ -506,18 +448,9 @@ public final class DreamEntryViewModel: ObservableObject {
             #endif
             
             // Check if it's a content policy violation
-            if let remoteError = error as? RemoteError,
-               case .contentPolicyViolation = remoteError {
-                self.hasContentPolicyViolation = true
-                // Update the local dream object to persist the status
-                self.dream.imageStatus = "policy_violation"
-            }
+            // Content policy violations are now handled by backend status
+            // The UI will show the appropriate message based on dream.imageStatus
         }
-        
-        // Clean up
-        self.isGeneratingImage = false
-        self.imageGenerationMessage = nil
-        messageTimer.invalidate()
     }
 
     // ──────────────────────────────────────────────────────────────

@@ -95,6 +95,13 @@
                 <key>NSIncludesSubdomains</key>
                 <true/>
             </dict>
+            <key>10.80.82.109</key>
+            <dict>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+                <key>NSIncludesSubdomains</key>
+                <true/>
+            </dict>
 		</dict>
 	</dict>
 	<key>UIFileSharingEnabled</key>

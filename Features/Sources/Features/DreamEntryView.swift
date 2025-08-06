@@ -113,19 +113,33 @@ struct DreamEntryView: View {
                             .font(DesignSystem.Typography.bodyMedium())
                             .foregroundColor(DesignSystem.Colors.ember)
 
-                        // Interpret button (only if analysis missing)
+                        // Interpret button or status
                         if vm.dream.analysis == nil {
-                            Button {
-                                Task { await vm.interpret() }
-                            } label: {
-                                Label("Interpret", systemImage: "sparkles")
-                                    .font(DesignSystem.Typography.bodyMedium())
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 10)
-                                    .background(Capsule().fill(Color.accentColor))
-                                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                            if vm.dream.analysisStatus == "pending" || vm.dream.analysisStatus == "processing" {
+                                // Show loading state
+                                HStack(spacing: 12) {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                    Text("Interpreting your dream...")
+                                        .font(DesignSystem.Typography.bodyMedium())
+                                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 10)
+                            } else if vm.dream.analysisStatus == nil || vm.dream.analysisStatus == "failed" {
+                                // Show interpret button
+                                Button {
+                                    Task { await vm.interpret() }
+                                } label: {
+                                    Label("Interpret", systemImage: "sparkles")
+                                        .font(DesignSystem.Typography.bodyMedium())
+                                        .padding(.horizontal, 20)
+                                        .padding(.vertical, 10)
+                                        .background(Capsule().fill(Color.accentColor))
+                                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
 
                         // Collapsible summary
@@ -154,7 +168,9 @@ struct DreamEntryView: View {
 
                         Divider()
 
-                        // Analysis section (if available)
+                        // Analysis section (if available)  
+                        // DEBUG: Check analysis value
+                        let _ = print("DEBUG: UI checking analysis - exists: \(vm.dream.analysis != nil), analysisStatus: \(vm.dream.analysisStatus ?? "nil")")
                         if let analysis = vm.dream.analysis {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("Interpretation")
@@ -173,15 +189,15 @@ struct DreamEntryView: View {
                                 // Buttons row
                                 HStack(spacing: 12) {
                                     // Tell Me More button or loading state
-                                    if vm.isExpandingAnalysis {
+                                    if vm.dream.expandedAnalysisStatus == "pending" || vm.dream.expandedAnalysisStatus == "processing" {
                                         HStack {
                                             ProgressView()
                                                 .scaleEffect(0.8)
-                                            Text(vm.expandedAnalysisMessage ?? "Expanding analysis...")
+                                            Text("Expanding analysis...")
                                                 .font(DesignSystem.Typography.caption())
                                                 .foregroundColor(DesignSystem.Colors.textTertiary)
                                         }
-                                    } else if vm.dream.expandedAnalysis == nil {
+                                    } else if vm.dream.expandedAnalysis == nil && (vm.dream.expandedAnalysisStatus == nil || vm.dream.expandedAnalysisStatus == "failed") {
                                         Button {
                                             Haptics.light() // Tell Me More tap
                                             Task {
@@ -200,22 +216,22 @@ struct DreamEntryView: View {
                                         }
                                     }
                                     
-                                    // Visualize button or content policy message
-                                    if vm.hasContentPolicyViolation {
+                                    // Visualize button or status message
+                                    if vm.dream.imageStatus == "policy_violation" {
                                         Text("This dream contains content that was flagged by our copyright and safety system")
                                             .font(DesignSystem.Typography.caption())
                                             .foregroundColor(DesignSystem.Colors.textTertiary)
                                             .padding(.horizontal, 16)
                                             .padding(.vertical, 8)
-                                    } else if vm.isGeneratingImage {
+                                    } else if vm.dream.imageStatus == "pending" || vm.dream.imageStatus == "processing" {
                                         HStack {
                                             ProgressView()
                                                 .scaleEffect(0.8)
-                                            Text(vm.imageGenerationMessage ?? "Creating dreamscape...")
+                                            Text("Creating dreamscape...")
                                                 .font(DesignSystem.Typography.caption())
                                                 .foregroundColor(DesignSystem.Colors.textTertiary)
                                         }
-                                    } else if vm.dream.imageUrl == nil {
+                                    } else if vm.dream.imageUrl == nil && (vm.dream.imageStatus == nil || vm.dream.imageStatus == "failed") {
                                         Button {
                                             Haptics.light() // Visualize tap
                                             Task {

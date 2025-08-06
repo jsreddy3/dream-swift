@@ -87,19 +87,17 @@ public actor SyncingDreamStore: DreamStore, Sendable {
     }
 
     public func markCompleted(_ id: UUID) async throws -> Dream {
-        // Mark completed locally first
-        let localDream = try await local.markCompleted(id)
-        enqueue(.finish(id))
+        // SURGICAL: Track finish flow - enqueue + direct call
+        print("🟡 SYNC FINISH: \(id.uuidString.prefix(8)) online=\(isOnline)")
         
-        // If online, ensure all pending operations for this dream are synced first
+        let localDream = try await local.markCompleted(id)
+        enqueue(.finish(id))  // This adds to queue
+        
         if isOnline {
-            // Process any pending operations for this dream before marking complete
-            await drainOperationsForDream(id)
-            
+            await drainOperationsForDream(id)  // This processes queue
             do {
-                return try await remote.markCompleted(id)
+                return try await remote.markCompleted(id)  // This is direct call
             } catch {
-                // If remote fails, return local dream
                 return localDream
             }
         }
@@ -188,24 +186,27 @@ public actor SyncingDreamStore: DreamStore, Sendable {
     }
     
     public func getDream(_ id: UUID) async throws -> Dream {
-        // 1️⃣ try fast local hit
-        if let cached = try? await local.getDream(id) {
-            // 2️⃣ kick off remote refresh in background (if online)
-            if isOnline {
-                Task.detached { [weak self] in
-                    guard let self else { return }
-                    if let fresh = try? await self.remote.getDream(id) {
-                        try? await self.local.upsert(fresh)
-                    }
-                }
+        #if DEBUG
+        print("DEBUG: SyncingDreamStore.getDream(\(id)) called")
+        #endif
+        
+        // Remote-first when online to ensure latest analysis state
+        if isOnline {
+            if let fresh = try? await remote.getDream(id) {
+                #if DEBUG
+                print("DEBUG: SyncingDreamStore got REMOTE dream - analysis: \(fresh.analysis != nil), analysisStatus: \(fresh.analysisStatus ?? "nil")")
+                #endif
+                try? await local.upsert(fresh)
+                return fresh
             }
-            return cached
         }
-
-        // 3️⃣ no cache → fetch remote (may still throw offline)
-        let fresh = try await remote.getDream(id)
-        try? await local.upsert(fresh)
-        return fresh
+        
+        // Fallback to cache when offline or remote fails
+        let cached = try await local.getDream(id)
+        #if DEBUG
+        print("DEBUG: SyncingDreamStore got CACHED dream - analysis: \(cached.analysis != nil), analysisStatus: \(cached.analysisStatus ?? "nil")")
+        #endif
+        return cached
     }
 
     public func requestAnalysis(for id: UUID, type: AnalysisType? = nil) async throws {
@@ -277,17 +278,29 @@ public actor SyncingDreamStore: DreamStore, Sendable {
     // MARK: – Queue draining
 
     public func drain() async {
+        // SURGICAL: Track drain execution
         guard isOnline else { return }
+        let finishOps = queue.compactMap { op -> UUID? in
+            if case .finish(let id) = op { return id }
+            return nil
+        }
+        if !finishOps.isEmpty {
+            print("🟢 DRAIN: processing \(finishOps.count) finish ops: \(finishOps.map { $0.uuidString.prefix(8) })")
+        }
+        
         while isOnline, !queue.isEmpty {
             let op = queue.removeFirst()
             do {
                 try await perform(op)
                 truncateLogIfEmpty()
             } catch {
+                print("🔴 DRAIN ERROR: \(op) failed with \(error) - stopping drain")
                 queue.insert(op, at: 0)
                 break
             }
         }
+        
+        print("🟢 DRAIN COMPLETE: \(queue.count) ops remaining")
     }
     
     // Drain operations for a specific dream
@@ -355,6 +368,10 @@ public actor SyncingDreamStore: DreamStore, Sendable {
     // MARK: – Queue helpers
 
     private func enqueue(_ op: PendingOp) {
+        // SURGICAL: Track queue + drain triggers
+        if case .finish(let id) = op {
+            print("🔵 ENQUEUE FINISH: \(id.uuidString.prefix(8)) qsize=\(queue.count) trigger_drain=\(isOnline)")
+        }
         queue.append(op)
         appendToLog(op)
         if isOnline { Task { await drain() } }
